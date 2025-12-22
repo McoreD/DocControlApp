@@ -39,6 +39,9 @@ export const MembersApi = {
   list: (projectId: number) => api<any[]>(`/projects/${projectId}/members`),
   invite: (projectId: number, email: string, role: string, daysValid = 7) =>
     api<any>(`/projects/${projectId}/invites`, 'POST', { email, role, daysValid }),
+  remove: (projectId: number, userId: number) => api<any>(`/projects/${projectId}/members/${userId}`, 'DELETE'),
+  changeRole: (projectId: number, userId: number, role: string) =>
+    api<any>(`/projects/${projectId}/members/${userId}/role`, 'POST', { role }),
 };
 
 export const DocumentsApi = {

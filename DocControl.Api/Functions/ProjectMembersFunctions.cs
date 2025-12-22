@@ -137,7 +137,7 @@ public sealed class ProjectMembersFunctions
         }
 
         await memberRepository.RemoveAsync(projectId, userId, req.FunctionContext.CancellationToken);
-        return req.ToJsonAsync(new { removed = userId }, HttpStatusCode.OK, jsonOptions).Result;
+        return await req.ToJsonAsync(new { removed = userId }, HttpStatusCode.OK, jsonOptions);
     }
 
     [Function("ProjectMembers_ChangeRole")]

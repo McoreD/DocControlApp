@@ -8,6 +8,7 @@ import Documents from './views/Documents';
 import Audit from './views/Audit';
 import ImportView from './views/ImportView';
 import Settings from './views/Settings';
+import Members from './views/Members';
 import NotFound from './views/NotFound';
 
 const router = createBrowserRouter([
@@ -19,6 +20,7 @@ const router = createBrowserRouter([
       { path: 'projects', element: <Projects /> },
       { path: 'recommend', element: <Recommend /> },
       { path: 'generate', element: <Generate /> },
+      { path: 'members', element: <Members /> },
       { path: 'codes', element: <Codes /> },
       { path: 'documents', element: <Documents /> },
       { path: 'audit', element: <Audit /> },
