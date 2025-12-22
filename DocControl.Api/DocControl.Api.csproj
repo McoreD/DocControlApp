@@ -17,4 +17,10 @@
     <PackageReference Include="Microsoft.Azure.Functions.Worker.Sdk" Version="2.0.7" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\DocControl.AI\DocControl.AI.csproj" />
+    <ProjectReference Include="..\DocControl.Core\DocControl.Core.csproj" />
+    <ProjectReference Include="..\DocControl.Infrastructure\DocControl.Infrastructure.csproj" />
+  </ItemGroup>
+
 </Project>
