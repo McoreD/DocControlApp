@@ -42,6 +42,7 @@ export const MembersApi = {
   remove: (projectId: number, userId: number) => api<any>(`/projects/${projectId}/members/${userId}`, 'DELETE'),
   changeRole: (projectId: number, userId: number, role: string) =>
     api<any>(`/projects/${projectId}/members/${userId}/role`, 'POST', { role }),
+  accept: (token: string) => api<any>(`/invites/accept`, 'POST', { token }),
 };
 
 export const DocumentsApi = {

@@ -17,6 +17,7 @@ export default function Members() {
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [inviteToken, setInviteToken] = useState('');
 
   const load = async () => {
     if (!projectId) return;
@@ -77,6 +78,20 @@ export default function Members() {
     }
   };
 
+  const accept = async () => {
+    if (!inviteToken.trim()) return;
+    setError(null);
+    setMessage(null);
+    try {
+      await MembersApi.accept(inviteToken.trim());
+      setMessage('Invite accepted.');
+      setInviteToken('');
+      await load();
+    } catch (err: any) {
+      setError(err.message ?? 'Accept invite failed');
+    }
+  };
+
   return (
     <div className="page">
       <h1>Members</h1>
@@ -98,6 +113,16 @@ export default function Members() {
               </select>
               <button onClick={invite} disabled={loading}>
                 {loading ? 'Working...' : 'Send invite'}
+              </button>
+            </div>
+          </div>
+          <div className="card">
+            <strong>Accept invite</strong>
+            <div className="stack">
+              <label>Invite token</label>
+              <input value={inviteToken} onChange={(e) => setInviteToken(e.target.value)} placeholder="Paste token" />
+              <button onClick={accept} disabled={loading}>
+                {loading ? 'Working...' : 'Accept'}
               </button>
             </div>
           </div>

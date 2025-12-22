@@ -45,10 +45,20 @@ export default function Documents() {
       <h1>Documents</h1>
       <p className="muted">List and filter documents per project. Filters: level1, level2, level3, q (file/free text).</p>
       {!projectId && <div className="pill">Select a project first.</div>}
-      <div className="row" style={{ marginBottom: 12 }}>
+      <div className="row" style={{ marginBottom: 12, alignItems: 'center' }}>
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search free text or file name" />
         <button onClick={load} disabled={!projectId || loading}>
           {loading ? 'Loading...' : 'Search'}
+        </button>
+        <button
+          onClick={() => {
+            setQ('');
+            load();
+          }}
+          disabled={!projectId || loading}
+          style={{ background: '#334155', color: '#e2e8f0' }}
+        >
+          Clear
         </button>
       </div>
       {error && <div className="pill" style={{ background: '#fee2e2', color: '#991b1b' }}>{error}</div>}
