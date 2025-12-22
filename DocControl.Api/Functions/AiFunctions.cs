@@ -1,0 +1,115 @@
+using System.Net;
+using System.Text.Json;
+using DocControl.Api.Infrastructure;
+using DocControl.Infrastructure.Data;
+using DocControl.Infrastructure.Services;
+using Microsoft.Azure.Functions.Worker;
+using Microsoft.Azure.Functions.Worker.Http;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+
+namespace DocControl.Api.Functions;
+
+public sealed class AiFunctions
+{
+    private readonly AuthContextFactory authFactory;
+    private readonly ProjectMemberRepository memberRepository;
+    private readonly CodeSeriesRepository codeSeriesRepository;
+    private readonly AiOrchestratorFactory aiFactory;
+    private readonly JsonSerializerOptions jsonOptions;
+    private readonly ILogger<AiFunctions> logger;
+
+    public AiFunctions(
+        AuthContextFactory authFactory,
+        ProjectMemberRepository memberRepository,
+        CodeSeriesRepository codeSeriesRepository,
+        AiOrchestratorFactory aiFactory,
+        IOptions<JsonSerializerOptions> jsonOptions,
+        ILogger<AiFunctions> logger)
+    {
+        this.authFactory = authFactory;
+        this.memberRepository = memberRepository;
+        this.codeSeriesRepository = codeSeriesRepository;
+        this.aiFactory = aiFactory;
+        this.jsonOptions = jsonOptions.Value;
+        this.logger = logger;
+    }
+
+    [Function("AI_Interpret")]
+    public async Task<HttpResponseData> InterpretAsync(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "projects/{projectId:long}/ai/interpret")] HttpRequestData req,
+        long projectId)
+    {
+        var (ok, auth, _) = await authFactory.BindAsync(req, req.FunctionContext.CancellationToken);
+        if (!ok || auth is null) return req.Error(HttpStatusCode.Unauthorized, "Auth required");
+        if (!await IsAtLeast(projectId, auth.UserId, Roles.Viewer, req.FunctionContext.CancellationToken)) return req.Error(HttpStatusCode.Forbidden, "Access denied");
+
+        var orchestrator = await aiFactory.CreateAsync(projectId, req.FunctionContext.CancellationToken).ConfigureAwait(false);
+        if (orchestrator is null) return req.Error(HttpStatusCode.BadRequest, "AI keys not configured for this project");
+
+        QueryRequest? payload;
+        try
+        {
+            payload = await JsonSerializer.DeserializeAsync<QueryRequest>(req.Body, jsonOptions, req.FunctionContext.CancellationToken);
+        }
+        catch (JsonException ex)
+        {
+            logger.LogWarning(ex, "Invalid AI interpret payload");
+            return req.Error(HttpStatusCode.BadRequest, "Invalid JSON payload");
+        }
+
+        if (payload is null || string.IsNullOrWhiteSpace(payload.Query))
+        {
+            return req.Error(HttpStatusCode.BadRequest, "Query required");
+        }
+
+        var nlq = new NlqService(orchestrator);
+        var result = await nlq.InterpretAsync(payload.Query, req.FunctionContext.CancellationToken).ConfigureAwait(false);
+        return await req.ToJsonAsync(result, HttpStatusCode.OK, jsonOptions);
+    }
+
+    [Function("AI_Recommend")]
+    public async Task<HttpResponseData> RecommendAsync(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "projects/{projectId:long}/ai/recommend")] HttpRequestData req,
+        long projectId)
+    {
+        var (ok, auth, _) = await authFactory.BindAsync(req, req.FunctionContext.CancellationToken);
+        if (!ok || auth is null) return req.Error(HttpStatusCode.Unauthorized, "Auth required");
+        if (!await IsAtLeast(projectId, auth.UserId, Roles.Viewer, req.FunctionContext.CancellationToken)) return req.Error(HttpStatusCode.Forbidden, "Access denied");
+
+        var orchestrator = await aiFactory.CreateAsync(projectId, req.FunctionContext.CancellationToken).ConfigureAwait(false);
+        if (orchestrator is null) return req.Error(HttpStatusCode.BadRequest, "AI keys not configured for this project");
+
+        QueryRequest? payload;
+        try
+        {
+            payload = await JsonSerializer.DeserializeAsync<QueryRequest>(req.Body, jsonOptions, req.FunctionContext.CancellationToken);
+        }
+        catch (JsonException ex)
+        {
+            logger.LogWarning(ex, "Invalid AI recommend payload");
+            return req.Error(HttpStatusCode.BadRequest, "Invalid JSON payload");
+        }
+
+        if (payload is null || string.IsNullOrWhiteSpace(payload.Query))
+        {
+            return req.Error(HttpStatusCode.BadRequest, "Query required");
+        }
+
+        var codes = await codeSeriesRepository.ListAsync(projectId, req.FunctionContext.CancellationToken).ConfigureAwait(false);
+        var display = codes.Select(c => (Level: c.Key.Level4 is null ? 3 : 4, Code: $"{c.Key.Level1}-{c.Key.Level2}-{c.Key.Level3}{(c.Key.Level4 is null ? "" : "-" + c.Key.Level4)}", Description: c.Description ?? string.Empty)).ToList();
+
+        var nlq = new NlqService(orchestrator);
+        var result = await nlq.RecommendCodeAsync(payload.Query, display, req.FunctionContext.CancellationToken).ConfigureAwait(false);
+        return await req.ToJsonAsync(result, HttpStatusCode.OK, jsonOptions);
+    }
+
+    private async Task<bool> IsAtLeast(long projectId, long userId, string requiredRole, CancellationToken cancellationToken)
+    {
+        var role = await memberRepository.GetRoleAsync(projectId, userId, cancellationToken).ConfigureAwait(false);
+        if (role is null) return false;
+        return Roles.Compare(role, requiredRole) >= 0;
+    }
+}
+
+public sealed record QueryRequest(string Query);

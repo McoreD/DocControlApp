@@ -17,9 +17,17 @@ public sealed class DatabaseMigratorHostedService : IHostedService
 
     public async Task StartAsync(CancellationToken cancellationToken)
     {
-        logger.LogInformation("Ensuring database schema exists...");
-        await initializer.EnsureCreatedAsync(cancellationToken).ConfigureAwait(false);
-        logger.LogInformation("Database schema ensured.");
+        try
+        {
+            logger.LogInformation("Ensuring database schema exists...");
+            await initializer.EnsureCreatedAsync(cancellationToken).ConfigureAwait(false);
+            logger.LogInformation("Database schema ensured.");
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Database schema initialization failed.");
+            throw;
+        }
     }
 
     public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;

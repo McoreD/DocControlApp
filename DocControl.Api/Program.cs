@@ -32,7 +32,8 @@ builder.Services.AddSingleton(provider =>
     var connStr = config.GetConnectionString("Db")
                  ?? config["DbConnection"]
                  ?? throw new InvalidOperationException("Database connection string not configured (ConnectionStrings:Db or DbConnection).");
-    return new DbConnectionFactory(connStr);
+    var sanitized = ConnectionStringHelper.Sanitize(connStr);
+    return new DbConnectionFactory(sanitized);
 });
 builder.Services.AddSingleton<DatabaseInitializer>();
 builder.Services.AddHostedService<DatabaseMigratorHostedService>();
@@ -47,5 +48,16 @@ builder.Services.AddSingleton<IApiKeyStore>(sp =>
 });
 
 builder.Services.AddSingleton<ProjectRepository>();
+builder.Services.AddSingleton<UserRepository>();
+builder.Services.AddSingleton<ProjectMemberRepository>();
+builder.Services.AddSingleton<ProjectInviteRepository>();
+builder.Services.AddSingleton<AuthContextFactory>();
+builder.Services.AddSingleton<DocumentRepository>();
+builder.Services.AddSingleton<NumberAllocator>();
+builder.Services.AddSingleton<AuditRepository>();
+builder.Services.AddSingleton<CodeSeriesRepository>();
+builder.Services.AddSingleton<CodeImportService>();
+builder.Services.AddSingleton<AiOrchestratorFactory>();
+builder.Services.AddHttpClient();
 
 builder.Build().Run();
