@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { ProjectsApi } from '../lib/api';
+import { useProject } from '../lib/projectContext';
 
 type Project = {
   id: number;
@@ -14,6 +15,7 @@ export default function Projects() {
   const [description, setDescription] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { projectId, setProjectId } = useProject();
 
   const load = async () => {
     setError(null);
@@ -92,6 +94,7 @@ export default function Projects() {
                 <th>Name</th>
                 <th>Description</th>
                 <th>Created</th>
+                <th>Active</th>
               </tr>
             </thead>
             <tbody>
@@ -100,6 +103,11 @@ export default function Projects() {
                   <td>{p.name}</td>
                   <td className="muted">{p.description}</td>
                   <td className="muted">{new Date(p.createdAtUtc).toLocaleString()}</td>
+                  <td>
+                    <button onClick={() => setProjectId(p.id)} disabled={projectId === p.id}>
+                      {projectId === p.id ? 'Selected' : 'Select'}
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>

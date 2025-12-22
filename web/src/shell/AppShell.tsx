@@ -1,4 +1,5 @@
 import { NavLink, Outlet } from 'react-router-dom';
+import { useProject } from '../lib/projectContext';
 
 const links = [
   { to: '/projects', label: 'Projects' },
@@ -12,10 +13,14 @@ const links = [
 ];
 
 export default function AppShell() {
+  const { projectId } = useProject();
   return (
     <div className="app-shell">
       <aside className="sidebar">
         <div className="brand">DocControl</div>
+        <div className="muted" style={{ fontSize: 12 }}>
+          {projectId ? `Active project: ${projectId}` : 'No project selected'}
+        </div>
         <nav className="nav">
           {links.map((l) => (
             <NavLink key={l.to} to={l.to} className={({ isActive }) => (isActive ? 'active' : '')}>

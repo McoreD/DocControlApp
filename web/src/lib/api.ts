@@ -29,3 +29,7 @@ export const ProjectsApi = {
   list: () => api<any[]>('/projects'),
   create: (name: string, description: string) => api<any>('/projects', 'POST', { name, description }),
 };
+
+export const CodesApi = {
+  list: (projectId: number) => api<any[]>(`/projects/${projectId}/codes`),
+};
