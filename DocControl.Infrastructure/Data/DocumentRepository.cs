@@ -1,0 +1,246 @@
+using DocControl.Core.Models;
+using Npgsql;
+
+namespace DocControl.Infrastructure.Data;
+
+public sealed class DocumentRepository
+{
+    private readonly DbConnectionFactory factory;
+
+    public DocumentRepository(DbConnectionFactory factory)
+    {
+        this.factory = factory;
+    }
+
+    public async Task<long> InsertAsync(AllocatedNumber allocated, CodeSeriesKey key, string? freeText, string fileName, long createdByUserId, DateTime createdAtUtc, string? originalQuery, CancellationToken cancellationToken = default)
+    {
+        await using var conn = factory.Create();
+        await conn.OpenAsync(cancellationToken).ConfigureAwait(false);
+
+        const string sql = @"
+            INSERT INTO Documents (ProjectId, Level1, Level2, Level3, Level4, Number, FreeText, FileName, CreatedByUserId, CreatedAtUtc, OriginalQuery, CodeSeriesId)
+            VALUES (@ProjectId, @Level1, @Level2, @Level3, @Level4, @Number, @FreeText, @FileName, @CreatedByUserId, @CreatedAtUtc, @OriginalQuery, @CodeSeriesId)
+            RETURNING Id;";
+
+        await using var cmd = new NpgsqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("@ProjectId", key.ProjectId);
+        cmd.Parameters.AddWithValue("@Level1", key.Level1);
+        cmd.Parameters.AddWithValue("@Level2", key.Level2);
+        cmd.Parameters.AddWithValue("@Level3", key.Level3);
+        cmd.Parameters.AddWithValue("@Level4", (object?)key.Level4 ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@Number", allocated.Number);
+        cmd.Parameters.AddWithValue("@FreeText", (object?)freeText ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@FileName", fileName);
+        cmd.Parameters.AddWithValue("@CreatedByUserId", createdByUserId);
+        cmd.Parameters.AddWithValue("@CreatedAtUtc", createdAtUtc);
+        cmd.Parameters.AddWithValue("@OriginalQuery", (object?)originalQuery ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@CodeSeriesId", allocated.SeriesId);
+
+        var result = await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
+        return Convert.ToInt64(result ?? throw new InvalidOperationException("Failed to insert document."));
+    }
+
+    public async Task<int?> GetMaxNumberAsync(CodeSeriesKey key, CancellationToken cancellationToken = default)
+    {
+        await using var conn = factory.Create();
+        await conn.OpenAsync(cancellationToken).ConfigureAwait(false);
+
+        const string sql = @"SELECT MAX(Number) FROM Documents WHERE ProjectId = @ProjectId AND Level1 = @Level1 AND Level2 = @Level2 AND Level3 = @Level3 AND (Level4 IS NOT DISTINCT FROM @Level4);";
+        await using var cmd = new NpgsqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("@ProjectId", key.ProjectId);
+        cmd.Parameters.AddWithValue("@Level1", key.Level1);
+        cmd.Parameters.AddWithValue("@Level2", key.Level2);
+        cmd.Parameters.AddWithValue("@Level3", key.Level3);
+        cmd.Parameters.AddWithValue("@Level4", (object?)key.Level4 ?? DBNull.Value);
+
+        var result = await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
+        if (result is DBNull or null) return null;
+        return Convert.ToInt32(result);
+    }
+
+    public async Task<bool> ExistsAsync(CodeSeriesKey key, CancellationToken cancellationToken = default)
+    {
+        await using var conn = factory.Create();
+        await conn.OpenAsync(cancellationToken).ConfigureAwait(false);
+        const string sql = @"SELECT 1 FROM Documents WHERE ProjectId = @ProjectId AND Level1=@Level1 AND Level2=@Level2 AND Level3=@Level3 AND (Level4 IS NOT DISTINCT FROM @Level4) LIMIT 1;";
+        await using var cmd = new NpgsqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("@ProjectId", key.ProjectId);
+        cmd.Parameters.AddWithValue("@Level1", key.Level1);
+        cmd.Parameters.AddWithValue("@Level2", key.Level2);
+        cmd.Parameters.AddWithValue("@Level3", key.Level3);
+        cmd.Parameters.AddWithValue("@Level4", (object?)key.Level4 ?? DBNull.Value);
+
+        var result = await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
+        return result != null;
+    }
+
+    public async Task<IReadOnlyList<DocumentRecord>> GetRecentAsync(long projectId, int take = 50, CancellationToken cancellationToken = default)
+    {
+        var list = new List<DocumentRecord>();
+        await using var conn = factory.Create();
+        await conn.OpenAsync(cancellationToken).ConfigureAwait(false);
+        const string sql = @"SELECT Id, ProjectId, Level1, Level2, Level3, Level4, Number, FreeText, FileName, CreatedByUserId, CreatedAtUtc, OriginalQuery, CodeSeriesId FROM Documents WHERE ProjectId = @ProjectId ORDER BY Id DESC LIMIT @take;";
+        await using var cmd = new NpgsqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("@ProjectId", projectId);
+        cmd.Parameters.AddWithValue("@take", take);
+
+        await using var reader = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+        while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+        {
+            list.Add(ReadDocument(reader));
+        }
+        return list;
+    }
+
+    public async Task<IReadOnlyList<DocumentRecord>> GetFilteredAsync(long projectId, string? level1Filter = null, string? level2Filter = null, string? level3Filter = null, string? fileNameFilter = null, int take = 1000, CancellationToken cancellationToken = default)
+    {
+        var list = new List<DocumentRecord>();
+        await using var conn = factory.Create();
+        await conn.OpenAsync(cancellationToken).ConfigureAwait(false);
+
+        var whereConditions = new List<string> { "ProjectId = @ProjectId" };
+        await using var cmd = new NpgsqlCommand();
+        cmd.Connection = conn;
+        cmd.Parameters.AddWithValue("@ProjectId", projectId);
+
+        if (!string.IsNullOrWhiteSpace(level1Filter))
+        {
+            whereConditions.Add("Level1 ILIKE @level1");
+            cmd.Parameters.AddWithValue("@level1", $"%{level1Filter}%");
+        }
+
+        if (!string.IsNullOrWhiteSpace(level2Filter))
+        {
+            whereConditions.Add("Level2 ILIKE @level2");
+            cmd.Parameters.AddWithValue("@level2", $"%{level2Filter}%");
+        }
+
+        if (!string.IsNullOrWhiteSpace(level3Filter))
+        {
+            whereConditions.Add("Level3 ILIKE @level3");
+            cmd.Parameters.AddWithValue("@level3", $"%{level3Filter}%");
+        }
+
+        if (!string.IsNullOrWhiteSpace(fileNameFilter))
+        {
+            whereConditions.Add("(FreeText ILIKE @filter OR FileName ILIKE @filter)");
+            cmd.Parameters.AddWithValue("@filter", $"%{fileNameFilter}%");
+        }
+
+        var whereClause = string.Join(" AND ", whereConditions);
+        cmd.CommandText = $@"
+            SELECT Id, ProjectId, Level1, Level2, Level3, Level4, Number, FreeText, FileName, CreatedByUserId, CreatedAtUtc, OriginalQuery, CodeSeriesId
+            FROM Documents 
+            WHERE {whereClause}
+            ORDER BY Id DESC 
+            LIMIT @take;";
+        cmd.Parameters.AddWithValue("@take", take);
+
+        await using var reader = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+        while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+        {
+            list.Add(ReadDocument(reader));
+        }
+        return list;
+    }
+
+    public async Task<DocumentRecord?> GetByIdAsync(long projectId, long id, CancellationToken cancellationToken = default)
+    {
+        await using var conn = factory.Create();
+        await conn.OpenAsync(cancellationToken).ConfigureAwait(false);
+        const string sql = @"SELECT Id, ProjectId, Level1, Level2, Level3, Level4, Number, FreeText, FileName, CreatedByUserId, CreatedAtUtc, OriginalQuery, CodeSeriesId FROM Documents WHERE ProjectId = @ProjectId AND Id = @id;";
+        await using var cmd = new NpgsqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("@ProjectId", projectId);
+        cmd.Parameters.AddWithValue("@id", id);
+        await using var reader = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+        if (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+        {
+            return ReadDocument(reader);
+        }
+        return null;
+    }
+
+    public async Task ClearAllAsync(long projectId, CancellationToken cancellationToken = default)
+    {
+        await using var conn = factory.Create();
+        await conn.OpenAsync(cancellationToken).ConfigureAwait(false);
+        await using var tx = await conn.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
+
+        const string delAudit = "DELETE FROM Audit WHERE ProjectId = @ProjectId;";
+        await using (var cmdAudit = new NpgsqlCommand(delAudit, conn, (NpgsqlTransaction)tx))
+        {
+            cmdAudit.Parameters.AddWithValue("@ProjectId", projectId);
+            await cmdAudit.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        const string delDocs = "DELETE FROM Documents WHERE ProjectId = @ProjectId;";
+        await using (var cmdDocs = new NpgsqlCommand(delDocs, conn, (NpgsqlTransaction)tx))
+        {
+            cmdDocs.Parameters.AddWithValue("@ProjectId", projectId);
+            await cmdDocs.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        await tx.CommitAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task UpsertImportedAsync(CodeSeriesKey key, int number, string freeText, string fileName, long createdByUserId, DateTime createdAtUtc, CancellationToken cancellationToken = default)
+    {
+        await using var conn = factory.Create();
+        await conn.OpenAsync(cancellationToken).ConfigureAwait(false);
+
+        const string sql = @"
+            INSERT INTO Documents (ProjectId, Level1, Level2, Level3, Level4, Number, FreeText, FileName, CreatedByUserId, CreatedAtUtc, OriginalQuery, CodeSeriesId)
+            VALUES (
+                @ProjectId,
+                @Level1,
+                @Level2,
+                @Level3,
+                @Level4,
+                @Number,
+                @FreeText,
+                @FileName,
+                @CreatedByUserId,
+                @CreatedAtUtc,
+                NULL,
+                (SELECT Id FROM CodeSeries WHERE ProjectId = @ProjectId AND Level1 = @Level1 AND Level2 = @Level2 AND Level3 = @Level3 AND (Level4 IS NOT DISTINCT FROM @Level4) LIMIT 1)
+            )
+            ON CONFLICT(ProjectId, Level1, Level2, Level3, Level4, Number)
+            DO UPDATE SET
+                FreeText = EXCLUDED.FreeText,
+                FileName = EXCLUDED.FileName,
+                CreatedByUserId = EXCLUDED.CreatedByUserId,
+                CreatedAtUtc = EXCLUDED.CreatedAtUtc;";
+
+        await using var cmd = new NpgsqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("@ProjectId", key.ProjectId);
+        cmd.Parameters.AddWithValue("@Level1", key.Level1);
+        cmd.Parameters.AddWithValue("@Level2", key.Level2);
+        cmd.Parameters.AddWithValue("@Level3", key.Level3);
+        cmd.Parameters.AddWithValue("@Level4", (object?)key.Level4 ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@Number", number);
+        cmd.Parameters.AddWithValue("@FreeText", (object?)freeText ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@FileName", fileName);
+        cmd.Parameters.AddWithValue("@CreatedByUserId", createdByUserId);
+        cmd.Parameters.AddWithValue("@CreatedAtUtc", createdAtUtc);
+
+        await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    private static DocumentRecord ReadDocument(NpgsqlDataReader reader) =>
+        new()
+        {
+            Id = reader.GetInt64(0),
+            ProjectId = reader.GetInt64(1),
+            Level1 = reader.GetString(2),
+            Level2 = reader.GetString(3),
+            Level3 = reader.GetString(4),
+            Level4 = reader.IsDBNull(5) ? null : reader.GetString(5),
+            Number = reader.GetInt32(6),
+            FreeText = reader.IsDBNull(7) ? null : reader.GetString(7),
+            FileName = reader.GetString(8),
+            CreatedByUserId = reader.GetInt64(9),
+            CreatedAtUtc = reader.GetDateTime(10),
+            OriginalQuery = reader.IsDBNull(11) ? null : reader.GetString(11),
+            CodeSeriesId = reader.GetInt64(12)
+        };
+}
