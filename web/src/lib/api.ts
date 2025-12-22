@@ -32,4 +32,40 @@ export const ProjectsApi = {
 
 export const CodesApi = {
   list: (projectId: number) => api<any[]>(`/projects/${projectId}/codes`),
+  importCsv: (projectId: number, csv: string) => api<any>(`/projects/${projectId}/codes/import`, 'POST', csv),
+};
+
+export const MembersApi = {
+  list: (projectId: number) => api<any[]>(`/projects/${projectId}/members`),
+  invite: (projectId: number, email: string, role: string, daysValid = 7) =>
+    api<any>(`/projects/${projectId}/invites`, 'POST', { email, role, daysValid }),
+};
+
+export const DocumentsApi = {
+  list: (projectId: number, q?: string) =>
+    api<any[]>(`/projects/${projectId}/documents${q ? `?q=${encodeURIComponent(q)}` : ''}`),
+  create: (
+    projectId: number,
+    payload: { level1: string; level2: string; level3: string; level4?: string; freeText?: string; extension?: string },
+  ) => api<any>(`/projects/${projectId}/documents`, 'POST', payload),
+  importSimple: (
+    projectId: number,
+    entries: { code: string; fileName?: string; freeText?: string; description?: string }[],
+  ) => api<any>(`/projects/${projectId}/documents/import`, 'POST', { entries }),
+};
+
+export const AuditApi = {
+  list: (projectId: number, take = 50) => api<any[]>(`/projects/${projectId}/audit?take=${take}`),
+};
+
+export const SettingsApi = {
+  get: (projectId: number) => api<any>(`/projects/${projectId}/settings`),
+  save: (projectId: number, payload: any) => api<any>(`/projects/${projectId}/settings`, 'POST', payload),
+};
+
+export const AiApi = {
+  interpret: (projectId: number, query: string) =>
+    api<any>(`/projects/${projectId}/ai/interpret`, 'POST', { query }),
+  recommend: (projectId: number, query: string) =>
+    api<any>(`/projects/${projectId}/ai/recommend`, 'POST', { query }),
 };
