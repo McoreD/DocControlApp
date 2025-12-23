@@ -31,8 +31,13 @@ builder.Services.AddSingleton(provider =>
 {
     var config = provider.GetRequiredService<IConfiguration>();
     var connStr = config.GetConnectionString("Db")
-                 ?? config["DbConnection"]
-                 ?? throw new InvalidOperationException("Database connection string not configured (ConnectionStrings:Db or DbConnection).");
+                 ?? config["DbConnection"];
+    if (string.IsNullOrWhiteSpace(connStr))
+    {
+        // Allow host to start even if DB is not configured; operations will fail when used.
+        // This helps deployments complete and lets us inspect runtime logs.
+        connStr = "Host=127.0.0.1;Port=5432;Username=placeholder;Password=placeholder;Database=placeholder";
+    }
     var sanitized = ConnectionStringHelper.Sanitize(connStr);
     return new DbConnectionFactory(sanitized);
 });
