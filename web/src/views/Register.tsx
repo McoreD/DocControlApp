@@ -7,6 +7,7 @@ export default function Register() {
   const { user, setUser } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const [emailInput, setEmailInput] = useState<HTMLInputElement | null>(null);
   const [email, setEmail] = useState(user?.email ?? '');
   const [name, setName] = useState(user?.name ?? '');
   const [loading, setLoading] = useState(false);
@@ -18,10 +19,10 @@ export default function Register() {
     }
   }, [user, navigate]);
 
-  const onSubmit = async (e: FormEvent) => {
-    e.preventDefault();
+  const registerUser = async (targetOverride?: string) => {
     if (!email.trim()) {
       setError('Email is required');
+      emailInput?.focus();
       return;
     }
 
@@ -35,7 +36,7 @@ export default function Register() {
         name: registered.displayName ?? registered.email,
         mfaEnabled: registered.mfaEnabled,
       });
-      const target = (location.state as { from?: string } | null)?.from ?? '/mfa';
+      const target = targetOverride ?? (location.state as { from?: string } | null)?.from ?? '/mfa';
       navigate(target, { replace: true });
     } catch (err: any) {
       setError(err.message ?? 'Failed to register');
@@ -44,12 +45,17 @@ export default function Register() {
     }
   };
 
+  const onSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    await registerUser();
+  };
+
   const goToProjects = () => {
     if (user) {
       navigate(user.mfaEnabled ? '/projects' : '/mfa', { replace: true });
       return;
     }
-    setError('Register first so we can take you to your projects.');
+    void registerUser('/projects');
   };
 
   return (
@@ -59,7 +65,13 @@ export default function Register() {
 
       <form className="card stack" style={{ marginTop: 16 }} onSubmit={onSubmit}>
         <label>Email</label>
-        <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" placeholder="you@example.com" />
+        <input
+          ref={setEmailInput}
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          type="email"
+          placeholder="you@example.com"
+        />
 
         <label>Display name</label>
         <input
@@ -82,7 +94,7 @@ export default function Register() {
             onClick={goToProjects}
             style={{ background: 'none', border: 'none', color: '#2563eb', cursor: 'pointer', padding: 0 }}
           >
-            Go to your projects
+            Log in
           </button>
           .
         </p>
