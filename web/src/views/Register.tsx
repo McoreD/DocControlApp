@@ -44,6 +44,14 @@ export default function Register() {
     }
   };
 
+  const goToProjects = () => {
+    if (user) {
+      navigate(user.mfaEnabled ? '/projects' : '/mfa', { replace: true });
+      return;
+    }
+    setError('Register first so we can take you to your projects.');
+  };
+
   return (
     <div className="page" style={{ maxWidth: 520, margin: '80px auto' }}>
       <h1>Create your account</h1>
@@ -71,7 +79,7 @@ export default function Register() {
           Already registered?{' '}
           <button
             type="button"
-            onClick={() => navigate('/projects')}
+            onClick={goToProjects}
             style={{ background: 'none', border: 'none', color: '#2563eb', cursor: 'pointer', padding: 0 }}
           >
             Go to your projects
