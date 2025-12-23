@@ -51,6 +51,7 @@ public sealed class DocumentsFunctions
     {
         var (ok, auth, _) = await authFactory.BindAsync(req, req.FunctionContext.CancellationToken);
         if (!ok || auth is null) return req.Error(HttpStatusCode.Unauthorized, "Auth required");
+        if (!auth.MfaEnabled) return req.Error(HttpStatusCode.Forbidden, "MFA required");
         if (!await IsAtLeast(projectId, auth.UserId, Roles.Viewer, req.FunctionContext.CancellationToken)) return req.Error(HttpStatusCode.Forbidden, "Access denied");
 
         var query = HttpUtility.ParseQueryString(req.Url.Query);
@@ -71,6 +72,7 @@ public sealed class DocumentsFunctions
     {
         var (ok, auth, _) = await authFactory.BindAsync(req, req.FunctionContext.CancellationToken);
         if (!ok || auth is null) return req.Error(HttpStatusCode.Unauthorized, "Auth required");
+        if (!auth.MfaEnabled) return req.Error(HttpStatusCode.Forbidden, "MFA required");
         if (!await IsAtLeast(projectId, auth.UserId, Roles.Viewer, req.FunctionContext.CancellationToken)) return req.Error(HttpStatusCode.Forbidden, "Access denied");
 
         var doc = await documentRepository.GetByIdAsync(projectId, documentId, req.FunctionContext.CancellationToken);
@@ -85,6 +87,7 @@ public sealed class DocumentsFunctions
     {
         var (ok, auth, _) = await authFactory.BindAsync(req, req.FunctionContext.CancellationToken);
         if (!ok || auth is null) return req.Error(HttpStatusCode.Unauthorized, "Auth required");
+        if (!auth.MfaEnabled) return req.Error(HttpStatusCode.Forbidden, "MFA required");
         if (!await IsAtLeast(projectId, auth.UserId, Roles.Contributor, req.FunctionContext.CancellationToken)) return req.Error(HttpStatusCode.Forbidden, "Contributor role required");
 
         CreateDocumentRequest? payload;
@@ -136,6 +139,7 @@ public sealed class DocumentsFunctions
     {
         var (ok, auth, _) = await authFactory.BindAsync(req, req.FunctionContext.CancellationToken);
         if (!ok || auth is null) return req.Error(HttpStatusCode.Unauthorized, "Auth required");
+        if (!auth.MfaEnabled) return req.Error(HttpStatusCode.Forbidden, "MFA required");
         if (!await IsAtLeast(projectId, auth.UserId, Roles.Viewer, req.FunctionContext.CancellationToken)) return req.Error(HttpStatusCode.Forbidden, "Access denied");
 
         var query = HttpUtility.ParseQueryString(req.Url.Query);

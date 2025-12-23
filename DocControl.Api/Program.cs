@@ -1,4 +1,5 @@
 using DocControl.Api.Infrastructure;
+using DocControl.Api.Services;
 using DocControl.Infrastructure.Data;
 using DocControl.Infrastructure.Services;
 using DocControl.Core.Security;
@@ -49,6 +50,7 @@ builder.Services.AddSingleton<IApiKeyStore>(sp =>
 
 builder.Services.AddSingleton<ProjectRepository>();
 builder.Services.AddSingleton<UserRepository>();
+builder.Services.AddSingleton<UserAuthRepository>();
 builder.Services.AddSingleton<ProjectMemberRepository>();
 builder.Services.AddSingleton<ProjectInviteRepository>();
 builder.Services.AddSingleton<AuthContextFactory>();
@@ -57,6 +59,7 @@ builder.Services.AddSingleton<NumberAllocator>();
 builder.Services.AddSingleton<AuditRepository>();
 builder.Services.AddSingleton<CodeSeriesRepository>();
 builder.Services.AddSingleton<CodeImportService>();
+builder.Services.AddSingleton<MfaService>();
 builder.Services.AddSingleton<AiOrchestratorFactory>();
 builder.Services.AddHttpClient();
 

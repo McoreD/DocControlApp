@@ -42,6 +42,7 @@ public sealed class AiFunctions
     {
         var (ok, auth, _) = await authFactory.BindAsync(req, req.FunctionContext.CancellationToken);
         if (!ok || auth is null) return req.Error(HttpStatusCode.Unauthorized, "Auth required");
+        if (!auth.MfaEnabled) return req.Error(HttpStatusCode.Forbidden, "MFA required");
         if (!await IsAtLeast(projectId, auth.UserId, Roles.Viewer, req.FunctionContext.CancellationToken)) return req.Error(HttpStatusCode.Forbidden, "Access denied");
 
         var orchestrator = await aiFactory.CreateAsync(projectId, req.FunctionContext.CancellationToken).ConfigureAwait(false);
@@ -75,6 +76,7 @@ public sealed class AiFunctions
     {
         var (ok, auth, _) = await authFactory.BindAsync(req, req.FunctionContext.CancellationToken);
         if (!ok || auth is null) return req.Error(HttpStatusCode.Unauthorized, "Auth required");
+        if (!auth.MfaEnabled) return req.Error(HttpStatusCode.Forbidden, "MFA required");
         if (!await IsAtLeast(projectId, auth.UserId, Roles.Viewer, req.FunctionContext.CancellationToken)) return req.Error(HttpStatusCode.Forbidden, "Access denied");
 
         var orchestrator = await aiFactory.CreateAsync(projectId, req.FunctionContext.CancellationToken).ConfigureAwait(false);

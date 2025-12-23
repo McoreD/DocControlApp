@@ -50,6 +50,7 @@ public sealed class ImportsFunctions
     {
         var (ok, auth, _) = await authFactory.BindAsync(req, req.FunctionContext.CancellationToken);
         if (!ok || auth is null) return req.Error(HttpStatusCode.Unauthorized, "Auth required");
+        if (!auth.MfaEnabled) return req.Error(HttpStatusCode.Forbidden, "MFA required");
         if (!await IsAtLeast(projectId, auth.UserId, Roles.Contributor, req.FunctionContext.CancellationToken)) return req.Error(HttpStatusCode.Forbidden, "Contributor role required");
 
         var csv = await new StreamReader(req.Body).ReadToEndAsync();
@@ -64,6 +65,7 @@ public sealed class ImportsFunctions
     {
         var (ok, auth, _) = await authFactory.BindAsync(req, req.FunctionContext.CancellationToken);
         if (!ok || auth is null) return req.Error(HttpStatusCode.Unauthorized, "Auth required");
+        if (!auth.MfaEnabled) return req.Error(HttpStatusCode.Forbidden, "MFA required");
         if (!await IsAtLeast(projectId, auth.UserId, Roles.Contributor, req.FunctionContext.CancellationToken)) return req.Error(HttpStatusCode.Forbidden, "Contributor role required");
 
         ImportDocumentsRequest? payload;

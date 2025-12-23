@@ -11,5 +11,9 @@ export default function RequireAuth({ children }: { children: React.ReactNode })
     return <Navigate to="/register" replace state={{ from: location.pathname }} />;
   }
 
+  if (!user.mfaEnabled && location.pathname !== '/mfa') {
+    return <Navigate to="/mfa" replace />;
+  }
+
   return <>{children}</>;
 }

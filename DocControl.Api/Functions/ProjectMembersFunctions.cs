@@ -42,6 +42,7 @@ public sealed class ProjectMembersFunctions
     {
         var (ok, auth, error) = await authFactory.BindAsync(req, req.FunctionContext.CancellationToken);
         if (!ok || auth is null) return req.Error(HttpStatusCode.Unauthorized, "Auth required");
+        if (!auth.MfaEnabled) return req.Error(HttpStatusCode.Forbidden, "MFA required");
 
         if (!await IsAtLeast(projectId, auth.UserId, Roles.Viewer, req.FunctionContext.CancellationToken))
         {
@@ -59,6 +60,7 @@ public sealed class ProjectMembersFunctions
     {
         var (ok, auth, error) = await authFactory.BindAsync(req, req.FunctionContext.CancellationToken);
         if (!ok || auth is null) return req.Error(HttpStatusCode.Unauthorized, "Auth required");
+        if (!auth.MfaEnabled) return req.Error(HttpStatusCode.Forbidden, "MFA required");
         if (!await IsAtLeast(projectId, auth.UserId, Roles.Owner, req.FunctionContext.CancellationToken))
         {
             return req.Error(HttpStatusCode.Forbidden, "Owner role required");
@@ -94,6 +96,7 @@ public sealed class ProjectMembersFunctions
     {
         var (ok, auth, error) = await authFactory.BindAsync(req, req.FunctionContext.CancellationToken);
         if (!ok || auth is null) return req.Error(HttpStatusCode.Unauthorized, "Auth required");
+        if (!auth.MfaEnabled) return req.Error(HttpStatusCode.Forbidden, "MFA required");
 
         AcceptInviteRequest? payload;
         try
@@ -131,6 +134,7 @@ public sealed class ProjectMembersFunctions
     {
         var (ok, auth, error) = await authFactory.BindAsync(req, req.FunctionContext.CancellationToken);
         if (!ok || auth is null) return req.Error(HttpStatusCode.Unauthorized, "Auth required");
+        if (!auth.MfaEnabled) return req.Error(HttpStatusCode.Forbidden, "MFA required");
         if (!await IsAtLeast(projectId, auth.UserId, Roles.Owner, req.FunctionContext.CancellationToken))
         {
             return req.Error(HttpStatusCode.Forbidden, "Owner role required");
@@ -148,6 +152,7 @@ public sealed class ProjectMembersFunctions
     {
         var (ok, auth, error) = await authFactory.BindAsync(req, req.FunctionContext.CancellationToken);
         if (!ok || auth is null) return req.Error(HttpStatusCode.Unauthorized, "Auth required");
+        if (!auth.MfaEnabled) return req.Error(HttpStatusCode.Forbidden, "MFA required");
         if (!await IsAtLeast(projectId, auth.UserId, Roles.Owner, req.FunctionContext.CancellationToken))
         {
             return req.Error(HttpStatusCode.Forbidden, "Owner role required");

@@ -39,6 +39,7 @@ public sealed class CodesFunctions
     {
         var (ok, auth, _) = await authFactory.BindAsync(req, req.FunctionContext.CancellationToken);
         if (!ok || auth is null) return req.Error(HttpStatusCode.Unauthorized, "Auth required");
+        if (!auth.MfaEnabled) return req.Error(HttpStatusCode.Forbidden, "MFA required");
         if (!await IsAtLeast(projectId, auth.UserId, Roles.Viewer, req.FunctionContext.CancellationToken)) return req.Error(HttpStatusCode.Forbidden, "Access denied");
 
         var codes = await codeSeriesRepository.ListAsync(projectId, req.FunctionContext.CancellationToken);
@@ -52,6 +53,7 @@ public sealed class CodesFunctions
     {
         var (ok, auth, _) = await authFactory.BindAsync(req, req.FunctionContext.CancellationToken);
         if (!ok || auth is null) return req.Error(HttpStatusCode.Unauthorized, "Auth required");
+        if (!auth.MfaEnabled) return req.Error(HttpStatusCode.Forbidden, "MFA required");
         if (!await IsAtLeast(projectId, auth.UserId, Roles.Contributor, req.FunctionContext.CancellationToken)) return req.Error(HttpStatusCode.Forbidden, "Contributor role required");
 
         UpsertCodeRequest? payload;
@@ -90,6 +92,7 @@ public sealed class CodesFunctions
     {
         var (ok, auth, _) = await authFactory.BindAsync(req, req.FunctionContext.CancellationToken);
         if (!ok || auth is null) return req.Error(HttpStatusCode.Unauthorized, "Auth required");
+        if (!auth.MfaEnabled) return req.Error(HttpStatusCode.Forbidden, "MFA required");
         if (!await IsAtLeast(projectId, auth.UserId, Roles.Contributor, req.FunctionContext.CancellationToken)) return req.Error(HttpStatusCode.Forbidden, "Contributor role required");
 
         await codeSeriesRepository.DeleteAsync(projectId, codeSeriesId, req.FunctionContext.CancellationToken);

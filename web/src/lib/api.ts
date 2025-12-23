@@ -1,6 +1,7 @@
 export type HttpMethod = 'GET' | 'POST' | 'DELETE';
 
-export type RegisteredUser = { id: number; email: string; displayName: string; createdAtUtc: string };
+export type RegisteredUser = { id: number; email: string; displayName: string; createdAtUtc: string; mfaEnabled: boolean };
+export type CurrentUser = { userId: number; email: string; displayName: string; mfaEnabled: boolean };
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? '/api';
 
@@ -48,6 +49,9 @@ export const ProjectsApi = {
 export const AuthApi = {
   register: (email: string, displayName: string) =>
     api<RegisteredUser>('/auth/register', 'POST', { email, displayName }, { skipAuth: true }),
+  me: () => api<CurrentUser>('/auth/me'),
+  startMfa: () => api<{ secret: string; otpauthUrl: string }>('/auth/mfa/start', 'POST'),
+  verifyMfa: (code: string) => api<{ mfaEnabled: boolean }>('/auth/mfa/verify', 'POST', { code }),
 };
 
 export const CodesApi = {

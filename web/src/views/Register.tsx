@@ -14,7 +14,7 @@ export default function Register() {
 
   useEffect(() => {
     if (user) {
-      navigate('/projects', { replace: true });
+      navigate(user.mfaEnabled ? '/projects' : '/mfa', { replace: true });
     }
   }, [user, navigate]);
 
@@ -29,8 +29,13 @@ export default function Register() {
     setError(null);
     try {
       const registered = await AuthApi.register(email.trim(), name.trim());
-      setUser({ id: registered.id, email: registered.email, name: registered.displayName ?? registered.email });
-      const target = (location.state as { from?: string } | null)?.from ?? '/projects';
+      setUser({
+        id: registered.id,
+        email: registered.email,
+        name: registered.displayName ?? registered.email,
+        mfaEnabled: registered.mfaEnabled,
+      });
+      const target = (location.state as { from?: string } | null)?.from ?? '/mfa';
       navigate(target, { replace: true });
     } catch (err: any) {
       setError(err.message ?? 'Failed to register');

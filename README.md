@@ -10,7 +10,7 @@
   - `ConnectionStrings__Db=<sanitized Npgsql connection string>`
   - or `DbConnection=<sanitized Npgsql connection string>`
 - Optional API keys path: `ApiKeysPath` (defaults to `data/apikeys.json`).
-- Dev auth: register first (`POST /auth/register` or via the UI) to get a user id, then pass headers `x-user-id`, `x-user-email`, `x-user-name` (UI sets them from localStorage). Replace with real token validation before production.
+- Dev auth: register first (`POST /auth/register` or via the UI) to get a user id, then pass headers `x-user-id`, `x-user-email`, `x-user-name` (UI sets them from localStorage). After registering, you must enable TOTP 2FA (`/auth/mfa/start` then `/auth/mfa/verify`). Replace with real token validation before production.
 
 ### Neon connection tips
 - Remove unsupported params like `channel_binding` (sanitizer in code also handles this).
@@ -32,6 +32,7 @@ Key endpoints (all prefixed with `/api`):
 - Audit: `GET /projects/{id}/audit`
 - Settings: `GET/POST /projects/{id}/settings`
 - AI: `POST /projects/{id}/ai/interpret`, `POST /projects/{id}/ai/recommend`
+- Auth: `POST /auth/register`, `GET /auth/me`, `POST /auth/mfa/start`, `POST /auth/mfa/verify`
 - Auth: `POST /auth/register` (dev-time registration to receive a user id)
 
 ## Frontend (React + Vite, dark mode)
@@ -47,6 +48,7 @@ Dev auth: set in browser console/localStorage to impersonate:
 localStorage.setItem('dc.userId', '<user id>');
 localStorage.setItem('dc.email', '<email>');
 localStorage.setItem('dc.name', '<display name>');
+localStorage.setItem('dc.mfa', 'true'); // set to true after completing /auth/mfa/start + /auth/mfa/verify
 ```
 
 Select a project on the Projects page; the selection is stored and used across pages.

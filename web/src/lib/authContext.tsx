@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState } from 'react';
+import { AuthApi } from './api';
 
-type User = { id: number; email: string; name: string };
+type User = { id: number; email: string; name: string; mfaEnabled: boolean };
 
 type AuthContextValue = {
   user: User | null;
@@ -19,20 +20,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const id = localStorage.getItem('dc.userId');
     const email = localStorage.getItem('dc.email');
     const name = localStorage.getItem('dc.name');
+    const mfa = localStorage.getItem('dc.mfa');
     if (id && email) {
       const parsedId = Number(id);
       if (!Number.isNaN(parsedId) && parsedId > 0) {
-        setUserState({ id: parsedId, email, name: name ?? email });
+        setUserState({ id: parsedId, email, name: name ?? email, mfaEnabled: mfa === 'true' });
       }
     }
-    setReady(true);
   }, []);
+
+  useEffect(() => {
+    if (!user || ready) {
+      if (!ready) setReady(true);
+      return;
+    }
+    const sync = async () => {
+      try {
+        const me = await AuthApi.me();
+        const current = { id: me.userId, email: me.email, name: me.displayName, mfaEnabled: me.mfaEnabled };
+        setUser(current);
+      } catch {
+        clearUser();
+      } finally {
+        setReady(true);
+      }
+    };
+    void sync();
+  }, [user, ready]);
 
   const setUser = (value: User) => {
     setUserState(value);
     localStorage.setItem('dc.userId', value.id.toString());
     localStorage.setItem('dc.email', value.email);
     localStorage.setItem('dc.name', value.name);
+    localStorage.setItem('dc.mfa', value.mfaEnabled ? 'true' : 'false');
   };
 
   const clearUser = () => {
@@ -40,6 +61,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.removeItem('dc.userId');
     localStorage.removeItem('dc.email');
     localStorage.removeItem('dc.name');
+    localStorage.removeItem('dc.mfa');
   };
 
   return <AuthContext.Provider value={{ user, setUser, clearUser, ready }}>{children}</AuthContext.Provider>;

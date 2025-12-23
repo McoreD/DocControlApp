@@ -40,6 +40,7 @@ public sealed class SettingsFunctions
     {
         var (ok, auth, _) = await authFactory.BindAsync(req, req.FunctionContext.CancellationToken);
         if (!ok || auth is null) return req.Error(HttpStatusCode.Unauthorized, "Auth required");
+        if (!auth.MfaEnabled) return req.Error(HttpStatusCode.Forbidden, "MFA required");
 
         if (!await projectRepository.IsMemberAsync(projectId, auth.UserId, req.FunctionContext.CancellationToken).ConfigureAwait(false))
         {
@@ -59,6 +60,7 @@ public sealed class SettingsFunctions
     {
         var (ok, auth, _) = await authFactory.BindAsync(req, req.FunctionContext.CancellationToken);
         if (!ok || auth is null) return req.Error(HttpStatusCode.Unauthorized, "Auth required");
+        if (!auth.MfaEnabled) return req.Error(HttpStatusCode.Forbidden, "MFA required");
 
         if (!await projectRepository.IsMemberAsync(projectId, auth.UserId, req.FunctionContext.CancellationToken).ConfigureAwait(false))
         {
