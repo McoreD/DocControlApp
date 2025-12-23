@@ -8,11 +8,12 @@ export default function ImportView() {
   const [lines, setLines] = useState('');
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loadingCodes, setLoadingCodes] = useState(false);
+  const [loadingDocs, setLoadingDocs] = useState(false);
 
   const importCodes = async () => {
     if (!projectId) return;
-    setLoading(true);
+    setLoadingCodes(true);
     setError(null);
     setMessage(null);
     try {
@@ -21,7 +22,7 @@ export default function ImportView() {
     } catch (err: any) {
       setError(err.message ?? 'Code import failed');
     } finally {
-      setLoading(false);
+      setLoadingCodes(false);
     }
   };
 
@@ -37,9 +38,9 @@ export default function ImportView() {
         if (!match) return { code: line, fileName: line };
         const [, code, tail] = match;
         return { code, fileName: line, freeText: tail };
-      });
+    });
     if (entries.length === 0) return;
-    setLoading(true);
+    setLoadingDocs(true);
     setError(null);
     setMessage(null);
     try {
@@ -48,7 +49,7 @@ export default function ImportView() {
     } catch (err: any) {
       setError(err.message ?? 'Document import failed');
     } finally {
-      setLoading(false);
+      setLoadingDocs(false);
     }
   };
 
@@ -75,8 +76,8 @@ export default function ImportView() {
             onChange={(e) => setCsv(e.target.value)}
             style={{ width: '100%', marginTop: 8 }}
           />
-          <button onClick={importCodes} disabled={!projectId || loading}>
-            {loading ? 'Working...' : 'Import Codes'}
+          <button onClick={importCodes} disabled={!projectId || loadingCodes}>
+            {loadingCodes ? 'Working...' : 'Import Codes'}
           </button>
         </div>
         <div className="card">
@@ -92,8 +93,8 @@ DFT-GOV-REG-002 Another file.docx`}
             onChange={(e) => setLines(e.target.value)}
             style={{ width: '100%', marginTop: 8 }}
           />
-          <button onClick={importDocs} disabled={!projectId || loading}>
-            {loading ? 'Working...' : 'Import Documents'}
+          <button onClick={importDocs} disabled={!projectId || loadingDocs}>
+            {loadingDocs ? 'Working...' : 'Import Documents'}
           </button>
         </div>
       </div>
