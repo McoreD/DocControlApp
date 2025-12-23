@@ -25,8 +25,8 @@ public sealed class DatabaseMigratorHostedService : IHostedService
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Database schema initialization failed.");
-            throw;
+            // Do not crash the host on startup; log and continue.
+            logger.LogError(ex, "Database schema initialization failed. Continuing without DB migrations.");
         }
     }
 
