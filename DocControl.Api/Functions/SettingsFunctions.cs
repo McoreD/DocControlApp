@@ -13,17 +13,20 @@ namespace DocControl.Api.Functions;
 
 public sealed class SettingsFunctions
 {
+    private readonly AuthContextFactory authFactory;
     private readonly ConfigService configService;
     private readonly ProjectRepository projectRepository;
     private readonly JsonSerializerOptions jsonOptions;
     private readonly ILogger<SettingsFunctions> logger;
 
     public SettingsFunctions(
+        AuthContextFactory authFactory,
         ConfigService configService,
         ProjectRepository projectRepository,
         IOptions<JsonSerializerOptions> jsonOptions,
         ILogger<SettingsFunctions> logger)
     {
+        this.authFactory = authFactory;
         this.configService = configService;
         this.projectRepository = projectRepository;
         this.jsonOptions = jsonOptions.Value;
@@ -35,12 +38,10 @@ public sealed class SettingsFunctions
         [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "projects/{projectId:long}/settings")] HttpRequestData req,
         long projectId)
     {
-        if (!ProjectsFunctions.TryGetUserId(req, out var userId, out var error))
-        {
-            return req.Error(HttpStatusCode.Unauthorized, error);
-        }
+        var (ok, auth, _) = await authFactory.BindAsync(req, req.FunctionContext.CancellationToken);
+        if (!ok || auth is null) return req.Error(HttpStatusCode.Unauthorized, "Auth required");
 
-        if (!await projectRepository.IsMemberAsync(projectId, userId, req.FunctionContext.CancellationToken).ConfigureAwait(false))
+        if (!await projectRepository.IsMemberAsync(projectId, auth.UserId, req.FunctionContext.CancellationToken).ConfigureAwait(false))
         {
             return req.Error(HttpStatusCode.Forbidden, "Not a project member.");
         }
@@ -56,12 +57,10 @@ public sealed class SettingsFunctions
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "projects/{projectId:long}/settings")] HttpRequestData req,
         long projectId)
     {
-        if (!ProjectsFunctions.TryGetUserId(req, out var userId, out var error))
-        {
-            return req.Error(HttpStatusCode.Unauthorized, error);
-        }
+        var (ok, auth, _) = await authFactory.BindAsync(req, req.FunctionContext.CancellationToken);
+        if (!ok || auth is null) return req.Error(HttpStatusCode.Unauthorized, "Auth required");
 
-        if (!await projectRepository.IsMemberAsync(projectId, userId, req.FunctionContext.CancellationToken).ConfigureAwait(false))
+        if (!await projectRepository.IsMemberAsync(projectId, auth.UserId, req.FunctionContext.CancellationToken).ConfigureAwait(false))
         {
             return req.Error(HttpStatusCode.Forbidden, "Not a project member.");
         }
