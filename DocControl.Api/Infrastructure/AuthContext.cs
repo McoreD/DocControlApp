@@ -21,19 +21,19 @@ public sealed class AuthContextFactory
     {
         if (!req.Headers.TryGetValues("x-user-id", out var userIds))
         {
-            return (false, null, req.Error(System.Net.HttpStatusCode.Unauthorized, "Missing user id header"));
+            return (false, null, await req.ErrorAsync(System.Net.HttpStatusCode.Unauthorized, "Missing user id header"));
         }
 
         var rawId = userIds.FirstOrDefault();
         if (!long.TryParse(rawId, out var userId) || userId <= 0)
         {
-            return (false, null, req.Error(System.Net.HttpStatusCode.Unauthorized, "Invalid user id"));
+            return (false, null, await req.ErrorAsync(System.Net.HttpStatusCode.Unauthorized, "Invalid user id"));
         }
 
         var user = await userRepository.GetByIdAsync(userId, cancellationToken).ConfigureAwait(false);
         if (user is null)
         {
-            return (false, null, req.Error(System.Net.HttpStatusCode.Unauthorized, "User not registered"));
+            return (false, null, await req.ErrorAsync(System.Net.HttpStatusCode.Unauthorized, "User not registered"));
         }
 
         var authRecord = await userAuthRepository.GetAsync(user.Id, cancellationToken).ConfigureAwait(false);

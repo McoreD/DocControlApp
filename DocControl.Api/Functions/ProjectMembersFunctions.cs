@@ -41,12 +41,12 @@ public sealed class ProjectMembersFunctions
         long projectId)
     {
         var (ok, auth, error) = await authFactory.BindAsync(req, req.FunctionContext.CancellationToken);
-        if (!ok || auth is null) return req.Error(HttpStatusCode.Unauthorized, "Auth required");
-        if (!auth.MfaEnabled) return req.Error(HttpStatusCode.Forbidden, "MFA required");
+        if (!ok || auth is null) return await req.ErrorAsync(HttpStatusCode.Unauthorized, "Auth required");
+        if (!auth.MfaEnabled) return await req.ErrorAsync(HttpStatusCode.Forbidden, "MFA required");
 
         if (!await IsAtLeast(projectId, auth.UserId, Roles.Viewer, req.FunctionContext.CancellationToken))
         {
-            return req.Error(HttpStatusCode.Forbidden, "Access denied");
+            return await req.ErrorAsync(HttpStatusCode.Forbidden, "Access denied");
         }
 
         var members = await memberRepository.ListAsync(projectId, req.FunctionContext.CancellationToken);
@@ -59,11 +59,11 @@ public sealed class ProjectMembersFunctions
         long projectId)
     {
         var (ok, auth, error) = await authFactory.BindAsync(req, req.FunctionContext.CancellationToken);
-        if (!ok || auth is null) return req.Error(HttpStatusCode.Unauthorized, "Auth required");
-        if (!auth.MfaEnabled) return req.Error(HttpStatusCode.Forbidden, "MFA required");
+        if (!ok || auth is null) return await req.ErrorAsync(HttpStatusCode.Unauthorized, "Auth required");
+        if (!auth.MfaEnabled) return await req.ErrorAsync(HttpStatusCode.Forbidden, "MFA required");
         if (!await IsAtLeast(projectId, auth.UserId, Roles.Owner, req.FunctionContext.CancellationToken))
         {
-            return req.Error(HttpStatusCode.Forbidden, "Owner role required");
+            return await req.ErrorAsync(HttpStatusCode.Forbidden, "Owner role required");
         }
 
         InviteRequest? payload;
@@ -74,12 +74,12 @@ public sealed class ProjectMembersFunctions
         catch (JsonException ex)
         {
             logger.LogWarning(ex, "Invalid invite payload");
-            return req.Error(HttpStatusCode.BadRequest, "Invalid JSON payload");
+            return await req.ErrorAsync(HttpStatusCode.BadRequest, "Invalid JSON payload");
         }
 
         if (payload is null || string.IsNullOrWhiteSpace(payload.Email))
         {
-            return req.Error(HttpStatusCode.BadRequest, "Email required");
+            return await req.ErrorAsync(HttpStatusCode.BadRequest, "Email required");
         }
 
         var role = string.IsNullOrWhiteSpace(payload.Role) ? Roles.Viewer : payload.Role;
@@ -95,8 +95,8 @@ public sealed class ProjectMembersFunctions
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "invites/accept")] HttpRequestData req)
     {
         var (ok, auth, error) = await authFactory.BindAsync(req, req.FunctionContext.CancellationToken);
-        if (!ok || auth is null) return req.Error(HttpStatusCode.Unauthorized, "Auth required");
-        if (!auth.MfaEnabled) return req.Error(HttpStatusCode.Forbidden, "MFA required");
+        if (!ok || auth is null) return await req.ErrorAsync(HttpStatusCode.Unauthorized, "Auth required");
+        if (!auth.MfaEnabled) return await req.ErrorAsync(HttpStatusCode.Forbidden, "MFA required");
 
         AcceptInviteRequest? payload;
         try
@@ -106,18 +106,18 @@ public sealed class ProjectMembersFunctions
         catch (JsonException ex)
         {
             logger.LogWarning(ex, "Invalid accept payload");
-            return req.Error(HttpStatusCode.BadRequest, "Invalid JSON payload");
+            return await req.ErrorAsync(HttpStatusCode.BadRequest, "Invalid JSON payload");
         }
 
         if (payload is null || string.IsNullOrWhiteSpace(payload.Token))
         {
-            return req.Error(HttpStatusCode.BadRequest, "Token required");
+            return await req.ErrorAsync(HttpStatusCode.BadRequest, "Token required");
         }
 
         var result = await inviteRepository.AcceptAsync(payload.Token.Trim(), auth.UserId, req.FunctionContext.CancellationToken);
         if (result is null)
         {
-            return req.Error(HttpStatusCode.BadRequest, "Invalid or expired invite");
+            return await req.ErrorAsync(HttpStatusCode.BadRequest, "Invalid or expired invite");
         }
 
         var (projectId, email, role) = result.Value;
@@ -133,11 +133,11 @@ public sealed class ProjectMembersFunctions
         long userId)
     {
         var (ok, auth, error) = await authFactory.BindAsync(req, req.FunctionContext.CancellationToken);
-        if (!ok || auth is null) return req.Error(HttpStatusCode.Unauthorized, "Auth required");
-        if (!auth.MfaEnabled) return req.Error(HttpStatusCode.Forbidden, "MFA required");
+        if (!ok || auth is null) return await req.ErrorAsync(HttpStatusCode.Unauthorized, "Auth required");
+        if (!auth.MfaEnabled) return await req.ErrorAsync(HttpStatusCode.Forbidden, "MFA required");
         if (!await IsAtLeast(projectId, auth.UserId, Roles.Owner, req.FunctionContext.CancellationToken))
         {
-            return req.Error(HttpStatusCode.Forbidden, "Owner role required");
+            return await req.ErrorAsync(HttpStatusCode.Forbidden, "Owner role required");
         }
 
         await memberRepository.RemoveAsync(projectId, userId, req.FunctionContext.CancellationToken);
@@ -151,11 +151,11 @@ public sealed class ProjectMembersFunctions
         long userId)
     {
         var (ok, auth, error) = await authFactory.BindAsync(req, req.FunctionContext.CancellationToken);
-        if (!ok || auth is null) return req.Error(HttpStatusCode.Unauthorized, "Auth required");
-        if (!auth.MfaEnabled) return req.Error(HttpStatusCode.Forbidden, "MFA required");
+        if (!ok || auth is null) return await req.ErrorAsync(HttpStatusCode.Unauthorized, "Auth required");
+        if (!auth.MfaEnabled) return await req.ErrorAsync(HttpStatusCode.Forbidden, "MFA required");
         if (!await IsAtLeast(projectId, auth.UserId, Roles.Owner, req.FunctionContext.CancellationToken))
         {
-            return req.Error(HttpStatusCode.Forbidden, "Owner role required");
+            return await req.ErrorAsync(HttpStatusCode.Forbidden, "Owner role required");
         }
 
         ChangeRoleRequest? payload;
@@ -166,12 +166,12 @@ public sealed class ProjectMembersFunctions
         catch (JsonException ex)
         {
             logger.LogWarning(ex, "Invalid role payload");
-            return req.Error(HttpStatusCode.BadRequest, "Invalid JSON payload");
+            return await req.ErrorAsync(HttpStatusCode.BadRequest, "Invalid JSON payload");
         }
 
         if (payload is null || string.IsNullOrWhiteSpace(payload.Role))
         {
-            return req.Error(HttpStatusCode.BadRequest, "Role required");
+            return await req.ErrorAsync(HttpStatusCode.BadRequest, "Role required");
         }
 
         await memberRepository.AddOrUpdateMemberAsync(projectId, userId, payload.Role.Trim(), auth.UserId, req.FunctionContext.CancellationToken);

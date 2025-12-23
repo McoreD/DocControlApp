@@ -30,8 +30,8 @@ public sealed class ProjectsFunctions
         [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "projects")] HttpRequestData req)
     {
         var (ok, auth, _) = await authFactory.BindAsync(req, req.FunctionContext.CancellationToken);
-        if (!ok || auth is null) return req.Error(HttpStatusCode.Unauthorized, "Auth required");
-        if (!auth.MfaEnabled) return req.Error(HttpStatusCode.Forbidden, "MFA required");
+        if (!ok || auth is null) return await req.ErrorAsync(HttpStatusCode.Unauthorized, "Auth required");
+        if (!auth.MfaEnabled) return await req.ErrorAsync(HttpStatusCode.Forbidden, "MFA required");
 
         var projects = await projectRepository.ListForUserAsync(auth.UserId);
         return await req.ToJsonAsync(projects, HttpStatusCode.OK, jsonOptions);
@@ -43,13 +43,13 @@ public sealed class ProjectsFunctions
         long projectId)
     {
         var (ok, auth, _) = await authFactory.BindAsync(req, req.FunctionContext.CancellationToken);
-        if (!ok || auth is null) return req.Error(HttpStatusCode.Unauthorized, "Auth required");
-        if (!auth.MfaEnabled) return req.Error(HttpStatusCode.Forbidden, "MFA required");
+        if (!ok || auth is null) return await req.ErrorAsync(HttpStatusCode.Unauthorized, "Auth required");
+        if (!auth.MfaEnabled) return await req.ErrorAsync(HttpStatusCode.Forbidden, "MFA required");
 
         var project = await projectRepository.GetAsync(projectId, auth.UserId);
         if (project is null)
         {
-            return req.Error(HttpStatusCode.NotFound, "Project not found or access denied.");
+            return await req.ErrorAsync(HttpStatusCode.NotFound, "Project not found or access denied.");
         }
 
         return await req.ToJsonAsync(project, HttpStatusCode.OK, jsonOptions);
@@ -60,8 +60,8 @@ public sealed class ProjectsFunctions
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "projects")] HttpRequestData req)
     {
         var (ok, auth, _) = await authFactory.BindAsync(req, req.FunctionContext.CancellationToken);
-        if (!ok || auth is null) return req.Error(HttpStatusCode.Unauthorized, "Auth required");
-        if (!auth.MfaEnabled) return req.Error(HttpStatusCode.Forbidden, "MFA required");
+        if (!ok || auth is null) return await req.ErrorAsync(HttpStatusCode.Unauthorized, "Auth required");
+        if (!auth.MfaEnabled) return await req.ErrorAsync(HttpStatusCode.Forbidden, "MFA required");
 
         CreateProjectRequest? payload;
         try
@@ -71,12 +71,12 @@ public sealed class ProjectsFunctions
         catch (JsonException ex)
         {
             logger.LogWarning(ex, "Invalid create project payload.");
-            return req.Error(HttpStatusCode.BadRequest, "Invalid JSON payload.");
+            return await req.ErrorAsync(HttpStatusCode.BadRequest, "Invalid JSON payload.");
         }
 
         if (payload is null || string.IsNullOrWhiteSpace(payload.Name))
         {
-            return req.Error(HttpStatusCode.BadRequest, "Name is required.");
+            return await req.ErrorAsync(HttpStatusCode.BadRequest, "Name is required.");
         }
 
         var projectId = await projectRepository.CreateAsync(payload.Name.Trim(), payload.Description ?? string.Empty, auth.UserId, req.FunctionContext.CancellationToken);

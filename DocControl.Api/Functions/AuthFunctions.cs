@@ -47,12 +47,12 @@ public sealed class AuthFunctions
         catch (JsonException ex)
         {
             logger.LogWarning(ex, "Invalid register payload");
-            return req.Error(HttpStatusCode.BadRequest, "Invalid JSON payload");
+            return await req.ErrorAsync(HttpStatusCode.BadRequest, "Invalid JSON payload");
         }
 
         if (payload is null || string.IsNullOrWhiteSpace(payload.Email))
         {
-            return req.Error(HttpStatusCode.BadRequest, "Email is required");
+            return await req.ErrorAsync(HttpStatusCode.BadRequest, "Email is required");
         }
 
         var displayName = string.IsNullOrWhiteSpace(payload.DisplayName) ? payload.Email.Trim() : payload.DisplayName.Trim();
@@ -66,7 +66,7 @@ public sealed class AuthFunctions
         [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "auth/me")] HttpRequestData req)
     {
         var (ok, auth, _) = await authFactory.BindAsync(req, req.FunctionContext.CancellationToken);
-        if (!ok || auth is null) return req.Error(HttpStatusCode.Unauthorized, "Auth required");
+        if (!ok || auth is null) return await req.ErrorAsync(HttpStatusCode.Unauthorized, "Auth required");
 
         var authRecord = await userAuthRepository.GetAsync(auth.UserId, req.FunctionContext.CancellationToken).ConfigureAwait(false);
         return await req.ToJsonAsync(new { auth.UserId, Email = auth.Email, DisplayName = auth.DisplayName, MfaEnabled = authRecord?.MfaEnabled ?? false }, HttpStatusCode.OK, jsonOptions);
@@ -77,7 +77,7 @@ public sealed class AuthFunctions
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "auth/mfa/start")] HttpRequestData req)
     {
         var (ok, auth, _) = await authFactory.BindAsync(req, req.FunctionContext.CancellationToken);
-        if (!ok || auth is null) return req.Error(HttpStatusCode.Unauthorized, "Auth required");
+        if (!ok || auth is null) return await req.ErrorAsync(HttpStatusCode.Unauthorized, "Auth required");
 
         var secret = mfaService.GenerateSecret();
         await userAuthRepository.SaveTotpAsync(auth.UserId, secret, verified: false, req.FunctionContext.CancellationToken).ConfigureAwait(false);
@@ -91,7 +91,7 @@ public sealed class AuthFunctions
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "auth/mfa/verify")] HttpRequestData req)
     {
         var (ok, auth, _) = await authFactory.BindAsync(req, req.FunctionContext.CancellationToken);
-        if (!ok || auth is null) return req.Error(HttpStatusCode.Unauthorized, "Auth required");
+        if (!ok || auth is null) return await req.ErrorAsync(HttpStatusCode.Unauthorized, "Auth required");
 
         VerifyMfaRequest? payload;
         try
@@ -101,18 +101,18 @@ public sealed class AuthFunctions
         catch (JsonException ex)
         {
             logger.LogWarning(ex, "Invalid verify payload");
-            return req.Error(HttpStatusCode.BadRequest, "Invalid JSON payload");
+            return await req.ErrorAsync(HttpStatusCode.BadRequest, "Invalid JSON payload");
         }
 
         if (payload is null || string.IsNullOrWhiteSpace(payload.Code))
         {
-            return req.Error(HttpStatusCode.BadRequest, "Code required");
+            return await req.ErrorAsync(HttpStatusCode.BadRequest, "Code required");
         }
 
         var authRecord = await userAuthRepository.GetAsync(auth.UserId, req.FunctionContext.CancellationToken).ConfigureAwait(false);
         if (authRecord?.MfaMethodsJson is null)
         {
-            return req.Error(HttpStatusCode.BadRequest, "Start MFA setup first");
+            return await req.ErrorAsync(HttpStatusCode.BadRequest, "Start MFA setup first");
         }
 
         TotpState? state;
@@ -127,12 +127,12 @@ public sealed class AuthFunctions
 
         if (state is null || string.IsNullOrWhiteSpace(state.Secret))
         {
-            return req.Error(HttpStatusCode.BadRequest, "MFA secret missing");
+            return await req.ErrorAsync(HttpStatusCode.BadRequest, "MFA secret missing");
         }
 
         if (!mfaService.VerifyCode(state.Secret, payload.Code))
         {
-            return req.Error(HttpStatusCode.BadRequest, "Invalid code");
+            return await req.ErrorAsync(HttpStatusCode.BadRequest, "Invalid code");
         }
 
         await userAuthRepository.SaveTotpAsync(auth.UserId, state.Secret, verified: true, req.FunctionContext.CancellationToken).ConfigureAwait(false);

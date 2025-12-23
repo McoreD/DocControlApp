@@ -49,9 +49,9 @@ public sealed class ImportsFunctions
         long projectId)
     {
         var (ok, auth, _) = await authFactory.BindAsync(req, req.FunctionContext.CancellationToken);
-        if (!ok || auth is null) return req.Error(HttpStatusCode.Unauthorized, "Auth required");
-        if (!auth.MfaEnabled) return req.Error(HttpStatusCode.Forbidden, "MFA required");
-        if (!await IsAtLeast(projectId, auth.UserId, Roles.Contributor, req.FunctionContext.CancellationToken)) return req.Error(HttpStatusCode.Forbidden, "Contributor role required");
+        if (!ok || auth is null) return await req.ErrorAsync(HttpStatusCode.Unauthorized, "Auth required");
+        if (!auth.MfaEnabled) return await req.ErrorAsync(HttpStatusCode.Forbidden, "MFA required");
+        if (!await IsAtLeast(projectId, auth.UserId, Roles.Contributor, req.FunctionContext.CancellationToken)) return await req.ErrorAsync(HttpStatusCode.Forbidden, "Contributor role required");
 
         var csv = await new StreamReader(req.Body).ReadToEndAsync();
         var result = await codeImportService.ImportCodesFromCsvAsync(projectId, csv, req.FunctionContext.CancellationToken);
@@ -64,9 +64,9 @@ public sealed class ImportsFunctions
         long projectId)
     {
         var (ok, auth, _) = await authFactory.BindAsync(req, req.FunctionContext.CancellationToken);
-        if (!ok || auth is null) return req.Error(HttpStatusCode.Unauthorized, "Auth required");
-        if (!auth.MfaEnabled) return req.Error(HttpStatusCode.Forbidden, "MFA required");
-        if (!await IsAtLeast(projectId, auth.UserId, Roles.Contributor, req.FunctionContext.CancellationToken)) return req.Error(HttpStatusCode.Forbidden, "Contributor role required");
+        if (!ok || auth is null) return await req.ErrorAsync(HttpStatusCode.Unauthorized, "Auth required");
+        if (!auth.MfaEnabled) return await req.ErrorAsync(HttpStatusCode.Forbidden, "MFA required");
+        if (!await IsAtLeast(projectId, auth.UserId, Roles.Contributor, req.FunctionContext.CancellationToken)) return await req.ErrorAsync(HttpStatusCode.Forbidden, "Contributor role required");
 
         ImportDocumentsRequest? payload;
         try
@@ -76,12 +76,12 @@ public sealed class ImportsFunctions
         catch (JsonException ex)
         {
             logger.LogWarning(ex, "Invalid document import payload");
-            return req.Error(HttpStatusCode.BadRequest, "Invalid JSON payload");
+            return await req.ErrorAsync(HttpStatusCode.BadRequest, "Invalid JSON payload");
         }
 
         if (payload is null || payload.Entries.Count == 0)
         {
-            return req.Error(HttpStatusCode.BadRequest, "No entries");
+            return await req.ErrorAsync(HttpStatusCode.BadRequest, "No entries");
         }
 
         var config = await configService.LoadDocumentConfigAsync(projectId, req.FunctionContext.CancellationToken).ConfigureAwait(false);

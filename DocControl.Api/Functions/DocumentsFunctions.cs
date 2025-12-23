@@ -50,9 +50,9 @@ public sealed class DocumentsFunctions
         long projectId)
     {
         var (ok, auth, _) = await authFactory.BindAsync(req, req.FunctionContext.CancellationToken);
-        if (!ok || auth is null) return req.Error(HttpStatusCode.Unauthorized, "Auth required");
-        if (!auth.MfaEnabled) return req.Error(HttpStatusCode.Forbidden, "MFA required");
-        if (!await IsAtLeast(projectId, auth.UserId, Roles.Viewer, req.FunctionContext.CancellationToken)) return req.Error(HttpStatusCode.Forbidden, "Access denied");
+        if (!ok || auth is null) return await req.ErrorAsync(HttpStatusCode.Unauthorized, "Auth required");
+        if (!auth.MfaEnabled) return await req.ErrorAsync(HttpStatusCode.Forbidden, "MFA required");
+        if (!await IsAtLeast(projectId, auth.UserId, Roles.Viewer, req.FunctionContext.CancellationToken)) return await req.ErrorAsync(HttpStatusCode.Forbidden, "Access denied");
 
         var query = HttpUtility.ParseQueryString(req.Url.Query);
         var l1 = query["level1"];
@@ -71,12 +71,12 @@ public sealed class DocumentsFunctions
         long documentId)
     {
         var (ok, auth, _) = await authFactory.BindAsync(req, req.FunctionContext.CancellationToken);
-        if (!ok || auth is null) return req.Error(HttpStatusCode.Unauthorized, "Auth required");
-        if (!auth.MfaEnabled) return req.Error(HttpStatusCode.Forbidden, "MFA required");
-        if (!await IsAtLeast(projectId, auth.UserId, Roles.Viewer, req.FunctionContext.CancellationToken)) return req.Error(HttpStatusCode.Forbidden, "Access denied");
+        if (!ok || auth is null) return await req.ErrorAsync(HttpStatusCode.Unauthorized, "Auth required");
+        if (!auth.MfaEnabled) return await req.ErrorAsync(HttpStatusCode.Forbidden, "MFA required");
+        if (!await IsAtLeast(projectId, auth.UserId, Roles.Viewer, req.FunctionContext.CancellationToken)) return await req.ErrorAsync(HttpStatusCode.Forbidden, "Access denied");
 
         var doc = await documentRepository.GetByIdAsync(projectId, documentId, req.FunctionContext.CancellationToken);
-        if (doc is null) return req.Error(HttpStatusCode.NotFound, "Not found");
+        if (doc is null) return await req.ErrorAsync(HttpStatusCode.NotFound, "Not found");
         return await req.ToJsonAsync(doc, HttpStatusCode.OK, jsonOptions);
     }
 
@@ -86,9 +86,9 @@ public sealed class DocumentsFunctions
         long projectId)
     {
         var (ok, auth, _) = await authFactory.BindAsync(req, req.FunctionContext.CancellationToken);
-        if (!ok || auth is null) return req.Error(HttpStatusCode.Unauthorized, "Auth required");
-        if (!auth.MfaEnabled) return req.Error(HttpStatusCode.Forbidden, "MFA required");
-        if (!await IsAtLeast(projectId, auth.UserId, Roles.Contributor, req.FunctionContext.CancellationToken)) return req.Error(HttpStatusCode.Forbidden, "Contributor role required");
+        if (!ok || auth is null) return await req.ErrorAsync(HttpStatusCode.Unauthorized, "Auth required");
+        if (!auth.MfaEnabled) return await req.ErrorAsync(HttpStatusCode.Forbidden, "MFA required");
+        if (!await IsAtLeast(projectId, auth.UserId, Roles.Contributor, req.FunctionContext.CancellationToken)) return await req.ErrorAsync(HttpStatusCode.Forbidden, "Contributor role required");
 
         CreateDocumentRequest? payload;
         try
@@ -98,18 +98,18 @@ public sealed class DocumentsFunctions
         catch (JsonException ex)
         {
             logger.LogWarning(ex, "Invalid document payload");
-            return req.Error(HttpStatusCode.BadRequest, "Invalid JSON payload");
+            return await req.ErrorAsync(HttpStatusCode.BadRequest, "Invalid JSON payload");
         }
 
         if (payload is null || string.IsNullOrWhiteSpace(payload.Level1) || string.IsNullOrWhiteSpace(payload.Level2) || string.IsNullOrWhiteSpace(payload.Level3))
         {
-            return req.Error(HttpStatusCode.BadRequest, "Level1-3 required");
+            return await req.ErrorAsync(HttpStatusCode.BadRequest, "Level1-3 required");
         }
 
         var config = await configService.LoadDocumentConfigAsync(projectId, req.FunctionContext.CancellationToken).ConfigureAwait(false);
         if (config.EnableLevel4 && string.IsNullOrWhiteSpace(payload.Level4))
         {
-            return req.Error(HttpStatusCode.BadRequest, "Level4 is required for this project");
+            return await req.ErrorAsync(HttpStatusCode.BadRequest, "Level4 is required for this project");
         }
 
         var key = new CodeSeriesKey
@@ -138,9 +138,9 @@ public sealed class DocumentsFunctions
         long projectId)
     {
         var (ok, auth, _) = await authFactory.BindAsync(req, req.FunctionContext.CancellationToken);
-        if (!ok || auth is null) return req.Error(HttpStatusCode.Unauthorized, "Auth required");
-        if (!auth.MfaEnabled) return req.Error(HttpStatusCode.Forbidden, "MFA required");
-        if (!await IsAtLeast(projectId, auth.UserId, Roles.Viewer, req.FunctionContext.CancellationToken)) return req.Error(HttpStatusCode.Forbidden, "Access denied");
+        if (!ok || auth is null) return await req.ErrorAsync(HttpStatusCode.Unauthorized, "Auth required");
+        if (!auth.MfaEnabled) return await req.ErrorAsync(HttpStatusCode.Forbidden, "MFA required");
+        if (!await IsAtLeast(projectId, auth.UserId, Roles.Viewer, req.FunctionContext.CancellationToken)) return await req.ErrorAsync(HttpStatusCode.Forbidden, "Access denied");
 
         var query = HttpUtility.ParseQueryString(req.Url.Query);
         var action = query["action"];

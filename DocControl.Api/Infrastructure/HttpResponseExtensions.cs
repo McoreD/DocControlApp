@@ -16,12 +16,12 @@ public static class HttpResponseExtensions
         return response;
     }
 
-    public static HttpResponseData Error(this HttpRequestData req, HttpStatusCode status, string message)
+    public static async Task<HttpResponseData> ErrorAsync(this HttpRequestData req, HttpStatusCode status, string message)
     {
         var response = req.CreateResponse(status);
         response.Headers.Add("Content-Type", "application/json");
         var json = JsonSerializer.Serialize(new { error = message }, DefaultJsonOptions.Instance);
-        response.WriteString(json);
+        await response.WriteStringAsync(json).ConfigureAwait(false);
         return response;
     }
 

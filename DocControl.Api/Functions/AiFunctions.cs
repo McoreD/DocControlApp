@@ -41,12 +41,12 @@ public sealed class AiFunctions
         long projectId)
     {
         var (ok, auth, _) = await authFactory.BindAsync(req, req.FunctionContext.CancellationToken);
-        if (!ok || auth is null) return req.Error(HttpStatusCode.Unauthorized, "Auth required");
-        if (!auth.MfaEnabled) return req.Error(HttpStatusCode.Forbidden, "MFA required");
-        if (!await IsAtLeast(projectId, auth.UserId, Roles.Viewer, req.FunctionContext.CancellationToken)) return req.Error(HttpStatusCode.Forbidden, "Access denied");
+        if (!ok || auth is null) return await req.ErrorAsync(HttpStatusCode.Unauthorized, "Auth required");
+        if (!auth.MfaEnabled) return await req.ErrorAsync(HttpStatusCode.Forbidden, "MFA required");
+        if (!await IsAtLeast(projectId, auth.UserId, Roles.Viewer, req.FunctionContext.CancellationToken)) return await req.ErrorAsync(HttpStatusCode.Forbidden, "Access denied");
 
         var orchestrator = await aiFactory.CreateAsync(projectId, req.FunctionContext.CancellationToken).ConfigureAwait(false);
-        if (orchestrator is null) return req.Error(HttpStatusCode.BadRequest, "AI keys not configured for this project");
+        if (orchestrator is null) return await req.ErrorAsync(HttpStatusCode.BadRequest, "AI keys not configured for this project");
 
         QueryRequest? payload;
         try
@@ -56,12 +56,12 @@ public sealed class AiFunctions
         catch (JsonException ex)
         {
             logger.LogWarning(ex, "Invalid AI interpret payload");
-            return req.Error(HttpStatusCode.BadRequest, "Invalid JSON payload");
+            return await req.ErrorAsync(HttpStatusCode.BadRequest, "Invalid JSON payload");
         }
 
         if (payload is null || string.IsNullOrWhiteSpace(payload.Query))
         {
-            return req.Error(HttpStatusCode.BadRequest, "Query required");
+            return await req.ErrorAsync(HttpStatusCode.BadRequest, "Query required");
         }
 
         var nlq = new NlqService(orchestrator);
@@ -75,12 +75,12 @@ public sealed class AiFunctions
         long projectId)
     {
         var (ok, auth, _) = await authFactory.BindAsync(req, req.FunctionContext.CancellationToken);
-        if (!ok || auth is null) return req.Error(HttpStatusCode.Unauthorized, "Auth required");
-        if (!auth.MfaEnabled) return req.Error(HttpStatusCode.Forbidden, "MFA required");
-        if (!await IsAtLeast(projectId, auth.UserId, Roles.Viewer, req.FunctionContext.CancellationToken)) return req.Error(HttpStatusCode.Forbidden, "Access denied");
+        if (!ok || auth is null) return await req.ErrorAsync(HttpStatusCode.Unauthorized, "Auth required");
+        if (!auth.MfaEnabled) return await req.ErrorAsync(HttpStatusCode.Forbidden, "MFA required");
+        if (!await IsAtLeast(projectId, auth.UserId, Roles.Viewer, req.FunctionContext.CancellationToken)) return await req.ErrorAsync(HttpStatusCode.Forbidden, "Access denied");
 
         var orchestrator = await aiFactory.CreateAsync(projectId, req.FunctionContext.CancellationToken).ConfigureAwait(false);
-        if (orchestrator is null) return req.Error(HttpStatusCode.BadRequest, "AI keys not configured for this project");
+        if (orchestrator is null) return await req.ErrorAsync(HttpStatusCode.BadRequest, "AI keys not configured for this project");
 
         QueryRequest? payload;
         try
@@ -90,12 +90,12 @@ public sealed class AiFunctions
         catch (JsonException ex)
         {
             logger.LogWarning(ex, "Invalid AI recommend payload");
-            return req.Error(HttpStatusCode.BadRequest, "Invalid JSON payload");
+            return await req.ErrorAsync(HttpStatusCode.BadRequest, "Invalid JSON payload");
         }
 
         if (payload is null || string.IsNullOrWhiteSpace(payload.Query))
         {
-            return req.Error(HttpStatusCode.BadRequest, "Query required");
+            return await req.ErrorAsync(HttpStatusCode.BadRequest, "Query required");
         }
 
         var codes = await codeSeriesRepository.ListAsync(projectId, req.FunctionContext.CancellationToken).ConfigureAwait(false);

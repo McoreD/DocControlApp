@@ -39,12 +39,12 @@ public sealed class SettingsFunctions
         long projectId)
     {
         var (ok, auth, _) = await authFactory.BindAsync(req, req.FunctionContext.CancellationToken);
-        if (!ok || auth is null) return req.Error(HttpStatusCode.Unauthorized, "Auth required");
-        if (!auth.MfaEnabled) return req.Error(HttpStatusCode.Forbidden, "MFA required");
+        if (!ok || auth is null) return await req.ErrorAsync(HttpStatusCode.Unauthorized, "Auth required");
+        if (!auth.MfaEnabled) return await req.ErrorAsync(HttpStatusCode.Forbidden, "MFA required");
 
         if (!await projectRepository.IsMemberAsync(projectId, auth.UserId, req.FunctionContext.CancellationToken).ConfigureAwait(false))
         {
-            return req.Error(HttpStatusCode.Forbidden, "Not a project member.");
+            return await req.ErrorAsync(HttpStatusCode.Forbidden, "Not a project member.");
         }
 
         var documentConfig = await configService.LoadDocumentConfigAsync(projectId, req.FunctionContext.CancellationToken).ConfigureAwait(false);
@@ -59,12 +59,12 @@ public sealed class SettingsFunctions
         long projectId)
     {
         var (ok, auth, _) = await authFactory.BindAsync(req, req.FunctionContext.CancellationToken);
-        if (!ok || auth is null) return req.Error(HttpStatusCode.Unauthorized, "Auth required");
-        if (!auth.MfaEnabled) return req.Error(HttpStatusCode.Forbidden, "MFA required");
+        if (!ok || auth is null) return await req.ErrorAsync(HttpStatusCode.Unauthorized, "Auth required");
+        if (!auth.MfaEnabled) return await req.ErrorAsync(HttpStatusCode.Forbidden, "MFA required");
 
         if (!await projectRepository.IsMemberAsync(projectId, auth.UserId, req.FunctionContext.CancellationToken).ConfigureAwait(false))
         {
-            return req.Error(HttpStatusCode.Forbidden, "Not a project member.");
+            return await req.ErrorAsync(HttpStatusCode.Forbidden, "Not a project member.");
         }
 
         SaveProjectSettingsRequest? payload;
@@ -75,12 +75,12 @@ public sealed class SettingsFunctions
         catch (JsonException ex)
         {
             logger.LogWarning(ex, "Invalid settings payload.");
-            return req.Error(HttpStatusCode.BadRequest, "Invalid JSON payload.");
+            return await req.ErrorAsync(HttpStatusCode.BadRequest, "Invalid JSON payload.");
         }
 
         if (payload?.DocumentConfig is null || payload.AiSettings is null)
         {
-            return req.Error(HttpStatusCode.BadRequest, "DocumentConfig and AiSettings are required.");
+            return await req.ErrorAsync(HttpStatusCode.BadRequest, "DocumentConfig and AiSettings are required.");
         }
 
         payload.DocumentConfig.LevelCount = payload.DocumentConfig.EnableLevel4 ? 4 : 3;
