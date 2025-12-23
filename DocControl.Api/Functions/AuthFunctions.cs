@@ -58,7 +58,9 @@ public sealed class AuthFunctions
         var displayName = string.IsNullOrWhiteSpace(payload.DisplayName) ? payload.Email.Trim() : payload.DisplayName.Trim();
         var user = await userRepository.RegisterAsync(payload.Email.Trim(), displayName, req.FunctionContext.CancellationToken).ConfigureAwait(false);
         await userAuthRepository.EnsureExistsAsync(user.Id, req.FunctionContext.CancellationToken).ConfigureAwait(false);
-        return await req.ToJsonAsync(new { user.Id, user.Email, user.DisplayName, user.CreatedAtUtc, MfaEnabled = false }, HttpStatusCode.Created, jsonOptions);
+        var auth = await userAuthRepository.GetAsync(user.Id, req.FunctionContext.CancellationToken).ConfigureAwait(false);
+        var mfaEnabled = auth?.MfaEnabled ?? false;
+        return await req.ToJsonAsync(new { user.Id, user.Email, user.DisplayName, user.CreatedAtUtc, MfaEnabled = mfaEnabled }, HttpStatusCode.Created, jsonOptions);
     }
 
     [Function("Auth_Me")]

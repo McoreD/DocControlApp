@@ -23,7 +23,7 @@ public sealed class UserRepository
         const string sql = @"
             INSERT INTO Users (Email, DisplayName, CreatedAtUtc)
             VALUES (@email, @name, now() at time zone 'utc')
-            ON CONFLICT (Email) DO UPDATE SET DisplayName = EXCLUDED.DisplayName
+            ON CONFLICT (Email) DO NOTHING
             RETURNING Id, Email, DisplayName, CreatedAtUtc;";
 
         await using var cmd = new NpgsqlCommand(sql, conn);
@@ -41,7 +41,10 @@ public sealed class UserRepository
             };
         }
 
-        throw new InvalidOperationException("Failed to register user.");
+        // Existing user: fetch without mutating existing display name.
+        await reader.DisposeAsync().ConfigureAwait(false);
+        return await GetByEmailAsync(email, cancellationToken).ConfigureAwait(false)
+               ?? throw new InvalidOperationException("Failed to register user.");
     }
 
     public async Task<long> GetOrCreateAsync(string email, string displayName, CancellationToken cancellationToken = default)
@@ -57,6 +60,27 @@ public sealed class UserRepository
         const string sql = "SELECT Id, Email, DisplayName, CreatedAtUtc FROM Users WHERE Id = @id;";
         await using var cmd = new NpgsqlCommand(sql, conn);
         cmd.Parameters.AddWithValue("@id", userId);
+        await using var reader = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+        if (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+        {
+            return new UserRecord
+            {
+                Id = reader.GetInt64(0),
+                Email = reader.GetString(1),
+                DisplayName = reader.GetString(2),
+                CreatedAtUtc = reader.GetDateTime(3)
+            };
+        }
+        return null;
+    }
+
+    public async Task<UserRecord?> GetByEmailAsync(string email, CancellationToken cancellationToken = default)
+    {
+        await using var conn = factory.Create();
+        await conn.OpenAsync(cancellationToken).ConfigureAwait(false);
+        const string sql = "SELECT Id, Email, DisplayName, CreatedAtUtc FROM Users WHERE Email = @email;";
+        await using var cmd = new NpgsqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("@email", email);
         await using var reader = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
         if (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
         {
