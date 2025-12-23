@@ -58,9 +58,21 @@ export default function MfaSetup() {
         <label>Secret</label>
         <input value={setup?.secret ?? ''} readOnly />
         {setup?.otpauthUrl && (
-          <a href={setup.otpauthUrl} target="_blank" rel="noreferrer">
-            Open in authenticator
-          </a>
+          <>
+            <a href={setup.otpauthUrl} target="_blank" rel="noreferrer">
+              Open in authenticator
+            </a>
+            <div style={{ marginTop: 12 }}>
+              <strong>Scan QR</strong>
+              <div style={{ marginTop: 8 }}>
+                <img
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(setup.otpauthUrl)}`}
+                  alt="MFA QR code"
+                  style={{ background: '#fff', padding: 8, borderRadius: 8 }}
+                />
+              </div>
+            </div>
+          </>
         )}
 
         <label>6-digit code</label>
