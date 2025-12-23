@@ -67,7 +67,11 @@ export default function Codes() {
               <tbody>
                 {codes.map((c) => {
                   const level = c.key.level4 ? 4 : c.key.level3 ? 3 : c.key.level2 ? 2 : 1;
-                  const code = [c.key.level1, c.key.level2, c.key.level3, c.key.level4].filter(Boolean).join('-');
+                  const code =
+                    level === 4 ? c.key.level4 :
+                    level === 3 ? c.key.level3 :
+                    level === 2 ? c.key.level2 :
+                    c.key.level1;
                   return (
                     <tr key={c.id}>
                       <td>{level}</td>
