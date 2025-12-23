@@ -53,7 +53,9 @@ public sealed class ImportsFunctions
         if (!auth.MfaEnabled) return await req.ErrorAsync(HttpStatusCode.Forbidden, "MFA required");
         if (!await IsAtLeast(projectId, auth.UserId, Roles.Contributor, req.FunctionContext.CancellationToken)) return await req.ErrorAsync(HttpStatusCode.Forbidden, "Contributor role required");
 
-        var csv = await new StreamReader(req.Body).ReadToEndAsync();
+        var raw = await new StreamReader(req.Body).ReadToEndAsync();
+        var csv = NormalizeCsvPayload(raw);
+        if (string.IsNullOrWhiteSpace(csv)) return await req.ErrorAsync(HttpStatusCode.BadRequest, "CSV payload empty");
         var result = await codeImportService.ImportCodesFromCsvAsync(projectId, csv, req.FunctionContext.CancellationToken);
         return await req.ToJsonAsync(result, HttpStatusCode.OK, jsonOptions);
     }
@@ -118,6 +120,46 @@ public sealed class ImportsFunctions
         }
 
         return await req.ToJsonAsync(new { imported, errors }, HttpStatusCode.OK, jsonOptions);
+    }
+
+    private static string NormalizeCsvPayload(string body)
+    {
+        if (string.IsNullOrWhiteSpace(body)) return string.Empty;
+        var trimmed = body.Trim();
+
+        // Allow JSON string payloads (body is just a JSON encoded string)
+        if (trimmed.Length >= 2 && trimmed.StartsWith("\"") && trimmed.EndsWith("\""))
+        {
+            try
+            {
+                return JsonSerializer.Deserialize<string>(trimmed) ?? string.Empty;
+            }
+            catch
+            {
+                // Fall back to raw body
+            }
+        }
+
+        // Allow { "csv": "..." } style payloads
+        if (trimmed.StartsWith("{"))
+        {
+            try
+            {
+                using var doc = JsonDocument.Parse(trimmed);
+                if (doc.RootElement.ValueKind == JsonValueKind.Object &&
+                    doc.RootElement.TryGetProperty("csv", out var csvProp) &&
+                    csvProp.ValueKind == JsonValueKind.String)
+                {
+                    return csvProp.GetString() ?? string.Empty;
+                }
+            }
+            catch
+            {
+                // Fall back to raw body
+            }
+        }
+
+        return body;
     }
 
     private static bool TryParseCode(string code, DocumentConfig config, out CodeSeriesKey key, out int number, out string reason)

@@ -56,7 +56,23 @@ export const AuthApi = {
 
 export const CodesApi = {
   list: (projectId: number) => api<any[]>(`/projects/${projectId}/codes`),
-  importCsv: (projectId: number, csv: string) => api<any>(`/projects/${projectId}/codes/import`, 'POST', csv),
+  importCsv: async (projectId: number, csv: string) => {
+    const headers = defaultHeaders();
+    headers['Content-Type'] = 'text/csv';
+
+    const res = await fetch(`${API_BASE}/projects/${projectId}/codes/import`, {
+      method: 'POST',
+      headers,
+      body: csv,
+    });
+
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(`${res.status} ${res.statusText}: ${text}`);
+    }
+
+    return res.json();
+  },
   purge: (projectId: number) => api<{ deletedDocuments: number; deletedCodes: number }>(`/projects/${projectId}/codes/purge`, 'DELETE'),
 };
 
