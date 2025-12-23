@@ -124,4 +124,16 @@ public sealed class CodeSeriesRepository
         deleteCmd.Parameters.AddWithValue("@SeriesId", codeSeriesId);
         await deleteCmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
+
+    public async Task<int> PurgeAsync(long projectId, CancellationToken cancellationToken = default)
+    {
+        await using var conn = factory.Create();
+        await conn.OpenAsync(cancellationToken).ConfigureAwait(false);
+
+        const string sql = @"DELETE FROM CodeSeries WHERE ProjectId = @ProjectId;";
+        await using var cmd = new NpgsqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("@ProjectId", projectId);
+        var affected = await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+        return affected;
+    }
 }

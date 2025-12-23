@@ -15,6 +15,7 @@ public sealed class CodesFunctions
     private readonly AuthContextFactory authFactory;
     private readonly ProjectMemberRepository memberRepository;
     private readonly CodeSeriesRepository codeSeriesRepository;
+    private readonly DocumentRepository documentRepository;
     private readonly JsonSerializerOptions jsonOptions;
     private readonly ILogger<CodesFunctions> logger;
 
@@ -22,12 +23,14 @@ public sealed class CodesFunctions
         AuthContextFactory authFactory,
         ProjectMemberRepository memberRepository,
         CodeSeriesRepository codeSeriesRepository,
+        DocumentRepository documentRepository,
         IOptions<JsonSerializerOptions> jsonOptions,
         ILogger<CodesFunctions> logger)
     {
         this.authFactory = authFactory;
         this.memberRepository = memberRepository;
         this.codeSeriesRepository = codeSeriesRepository;
+        this.documentRepository = documentRepository;
         this.jsonOptions = jsonOptions.Value;
         this.logger = logger;
     }
@@ -97,6 +100,23 @@ public sealed class CodesFunctions
 
         await codeSeriesRepository.DeleteAsync(projectId, codeSeriesId, req.FunctionContext.CancellationToken);
         return req.ToJsonAsync(new { deleted = codeSeriesId }, HttpStatusCode.OK, jsonOptions).Result;
+    }
+
+    [Function("Codes_Purge")]
+    public async Task<HttpResponseData> PurgeAsync(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "projects/{projectId:long}/codes/purge")] HttpRequestData req,
+        long projectId)
+    {
+        var (ok, auth, _) = await authFactory.BindAsync(req, req.FunctionContext.CancellationToken);
+        if (!ok || auth is null) return await req.ErrorAsync(HttpStatusCode.Unauthorized, "Auth required");
+        if (!auth.MfaEnabled) return await req.ErrorAsync(HttpStatusCode.Forbidden, "MFA required");
+        if (!await IsAtLeast(projectId, auth.UserId, Roles.Owner, req.FunctionContext.CancellationToken)) return await req.ErrorAsync(HttpStatusCode.Forbidden, "Owner role required");
+
+        // Drop documents first to avoid FK violations, then purge code series.
+        var deletedDocs = await documentRepository.PurgeAsync(projectId, req.FunctionContext.CancellationToken).ConfigureAwait(false);
+        var deletedCodes = await codeSeriesRepository.PurgeAsync(projectId, req.FunctionContext.CancellationToken).ConfigureAwait(false);
+        logger.LogInformation("Purged documents {Docs} and codes {Codes} for project {Project}", deletedDocs, deletedCodes, projectId);
+        return await req.ToJsonAsync(new { deletedDocuments = deletedDocs, deletedCodes }, HttpStatusCode.OK, jsonOptions);
     }
 
     private async Task<bool> IsAtLeast(long projectId, long userId, string requiredRole, CancellationToken cancellationToken)

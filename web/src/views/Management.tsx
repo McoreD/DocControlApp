@@ -41,6 +41,34 @@ export default function Management() {
           {loading ? 'Purging...' : 'Purge documents'}
         </button>
       </div>
+      <div className="card" style={{ marginTop: 12 }}>
+        <strong>Codes</strong>
+        <p className="muted" style={{ margin: '8px 0' }}>
+          Purge removes all codes and any documents linked to them for this project.
+        </p>
+        <button
+          onClick={async () => {
+            if (!projectId) return;
+            const confirmed = window.confirm('Permanently delete all codes (and their documents). Continue?');
+            if (!confirmed) return;
+            setLoading(true);
+            setMessage(null);
+            setError(null);
+            try {
+              const result = await CodesApi.purge(projectId);
+              setMessage(`Deleted ${result.deletedCodes} code(s) and ${result.deletedDocuments} document(s).`);
+            } catch (err: any) {
+              setError(err.message ?? 'Failed to purge codes');
+            } finally {
+              setLoading(false);
+            }
+          }}
+          disabled={!projectId || loading}
+          style={{ background: '#b91c1c' }}
+        >
+          {loading ? 'Purging...' : 'Purge codes'}
+        </button>
+      </div>
     </div>
   );
 }

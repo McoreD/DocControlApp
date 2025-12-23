@@ -41,7 +41,8 @@ public sealed class CodeImportService
 
             var code = parts[1].Trim();
             // Description is everything after the second comma (parts[2] onwards joined)
-            var description = parts.Length > 2 ? string.Join(",", parts.Skip(2)).Trim() : "";
+            var description = parts.Length > 2 ? string.Join(",", parts.Skip(2)).Trim() : string.Empty;
+            if (string.IsNullOrWhiteSpace(description)) description = string.Empty;
 
             if (string.IsNullOrWhiteSpace(code))
             {

@@ -57,6 +57,7 @@ export const AuthApi = {
 export const CodesApi = {
   list: (projectId: number) => api<any[]>(`/projects/${projectId}/codes`),
   importCsv: (projectId: number, csv: string) => api<any>(`/projects/${projectId}/codes/import`, 'POST', csv),
+  purge: (projectId: number) => api<{ deletedDocuments: number; deletedCodes: number }>(`/projects/${projectId}/codes/purge`, 'DELETE'),
 };
 
 export const MembersApi = {
