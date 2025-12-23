@@ -18,7 +18,7 @@ const links = [
 export default function AppShell() {
   const navigate = useNavigate();
   const { user, clearUser } = useAuth();
-  const { projectId, setProjectId } = useProject();
+  const { projectId, projectName, setProjectId } = useProject();
 
   const signOut = () => {
     setProjectId(null);
@@ -38,7 +38,7 @@ export default function AppShell() {
           </div>
         )}
         <div className="muted" style={{ fontSize: 12 }}>
-          {projectId ? `Active project: ${projectId}` : 'No project selected'}
+          {projectId ? `Active project: ${projectName ?? `Project ${projectId}`}` : 'No project selected'}
         </div>
         <nav className="nav">
           {links.map((l) => (

@@ -96,7 +96,7 @@ export default function Projects() {
                   <td className="muted">{p.description}</td>
                   <td className="muted">{new Date(p.createdAtUtc).toLocaleString()}</td>
                   <td>
-                    <button onClick={() => setProjectId(p.id)} disabled={projectId === p.id}>
+                    <button onClick={() => setProjectId(p.id, p.name)} disabled={projectId === p.id}>
                       {projectId === p.id ? 'Selected' : 'Select'}
                     </button>
                   </td>
