@@ -75,16 +75,18 @@ export default function Documents() {
               </tr>
             </thead>
             <tbody>
-              {docs.map((d) => (
-                <tr key={d.id}>
-                  <td>{d.fileName}</td>
-                  <td className="muted">
-                    {[d.level1, d.level2, d.level3, d.level4].filter(Boolean).join('-')} ({d.number})
-                  </td>
-                  <td className="muted">{d.freeText ?? ''}</td>
-                  <td className="muted">{new Date(d.createdAtUtc).toLocaleString()}</td>
-                </tr>
-              ))}
+              {docs.map((d) => {
+                const series = [d.level1, d.level2, d.level3, d.level4].filter(Boolean).join('-');
+                const code = `${series}-${String(d.number ?? '').padStart(3, '0')}`;
+                return (
+                  <tr key={d.id}>
+                    <td>{d.fileName}</td>
+                    <td className="muted">{code}</td>
+                    <td className="muted">{d.freeText ?? ''}</td>
+                    <td className="muted">{new Date(d.createdAtUtc).toLocaleString()}</td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         )}
