@@ -73,14 +73,6 @@ export default function Projects() {
             {error && <div className="pill" style={{ background: '#fee2e2', color: '#991b1b' }}>{error}</div>}
           </div>
         </div>
-
-        <div className="card">
-          <strong>Quick tip</strong>
-          <p className="muted" style={{ margin: 0 }}>
-            Headers `x-user-id`, `x-user-email`, and `x-user-name` are used for dev auth. Set them in localStorage to
-            impersonate different users.
-          </p>
-        </div>
       </div>
 
       <div className="card" style={{ marginTop: 16 }}>

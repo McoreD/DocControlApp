@@ -18,27 +18,21 @@ public sealed class AuthContextFactory
     {
         if (!req.Headers.TryGetValues("x-user-id", out var userIds))
         {
-            return (false, null, req.CreateResponse(System.Net.HttpStatusCode.Unauthorized));
+            return (false, null, req.Error(System.Net.HttpStatusCode.Unauthorized, "Missing user id header"));
         }
 
         var rawId = userIds.FirstOrDefault();
         if (!long.TryParse(rawId, out var userId) || userId <= 0)
         {
-            return (false, null, req.CreateResponse(System.Net.HttpStatusCode.Unauthorized));
+            return (false, null, req.Error(System.Net.HttpStatusCode.Unauthorized, "Invalid user id"));
         }
 
-        var email = GetHeader(req, "x-user-email") ?? $"user{userId}@example.com";
-        var name = GetHeader(req, "x-user-name") ?? email;
-
-        var ensuredId = await userRepository.GetOrCreateAsync(email, name, cancellationToken).ConfigureAwait(false);
-        if (ensuredId != userId)
+        var user = await userRepository.GetByIdAsync(userId, cancellationToken).ConfigureAwait(false);
+        if (user is null)
         {
-            userId = ensuredId;
+            return (false, null, req.Error(System.Net.HttpStatusCode.Unauthorized, "User not registered"));
         }
 
-        return (true, new AuthContext(userId, email, name), null);
+        return (true, new AuthContext(user.Id, user.Email, user.DisplayName), null);
     }
-
-    private static string? GetHeader(HttpRequestData req, string name) =>
-        req.Headers.TryGetValues(name, out var values) ? values.FirstOrDefault() : null;
 }

@@ -1,4 +1,5 @@
-import { NavLink, Outlet } from 'react-router-dom';
+import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { useAuth } from '../lib/authContext';
 import { useProject } from '../lib/projectContext';
 
 const links = [
@@ -14,11 +15,27 @@ const links = [
 ];
 
 export default function AppShell() {
-  const { projectId } = useProject();
+  const navigate = useNavigate();
+  const { user, clearUser } = useAuth();
+  const { projectId, setProjectId } = useProject();
+
+  const signOut = () => {
+    setProjectId(null);
+    clearUser();
+    navigate('/register');
+  };
+
   return (
     <div className="app-shell">
       <aside className="sidebar">
         <div className="brand">DocControl</div>
+        {user && (
+          <div className="muted" style={{ fontSize: 12, lineHeight: 1.4 }}>
+            Signed in as
+            <div style={{ color: '#e2e8f0' }}>{user.name || user.email}</div>
+            <div>{user.email}</div>
+          </div>
+        )}
         <div className="muted" style={{ fontSize: 12 }}>
           {projectId ? `Active project: ${projectId}` : 'No project selected'}
         </div>
@@ -29,6 +46,18 @@ export default function AppShell() {
             </NavLink>
           ))}
         </nav>
+        <button
+          type="button"
+          onClick={signOut}
+          style={{
+            marginTop: 'auto',
+            background: 'none',
+            border: '1px solid #1f2937',
+            color: '#e2e8f0',
+          }}
+        >
+          Sign out
+        </button>
       </aside>
       <main className="content">
         <Outlet />

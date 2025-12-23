@@ -12,12 +12,14 @@ namespace DocControl.Api.Functions;
 
 public sealed class ProjectsFunctions
 {
+    private readonly AuthContextFactory authFactory;
     private readonly ProjectRepository projectRepository;
     private readonly JsonSerializerOptions jsonOptions;
     private readonly ILogger<ProjectsFunctions> logger;
 
-    public ProjectsFunctions(ProjectRepository projectRepository, IOptions<JsonSerializerOptions> jsonOptions, ILogger<ProjectsFunctions> logger)
+    public ProjectsFunctions(AuthContextFactory authFactory, ProjectRepository projectRepository, IOptions<JsonSerializerOptions> jsonOptions, ILogger<ProjectsFunctions> logger)
     {
+        this.authFactory = authFactory;
         this.projectRepository = projectRepository;
         this.jsonOptions = jsonOptions.Value;
         this.logger = logger;
@@ -27,12 +29,10 @@ public sealed class ProjectsFunctions
     public async Task<HttpResponseData> ListAsync(
         [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "projects")] HttpRequestData req)
     {
-        if (!TryGetUserId(req, out var userId, out var error))
-        {
-            return req.Error(HttpStatusCode.Unauthorized, error);
-        }
+        var (ok, auth, _) = await authFactory.BindAsync(req, req.FunctionContext.CancellationToken);
+        if (!ok || auth is null) return req.Error(HttpStatusCode.Unauthorized, "Auth required");
 
-        var projects = await projectRepository.ListForUserAsync(userId);
+        var projects = await projectRepository.ListForUserAsync(auth.UserId);
         return await req.ToJsonAsync(projects, HttpStatusCode.OK, jsonOptions);
     }
 
@@ -41,12 +41,10 @@ public sealed class ProjectsFunctions
         [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "projects/{projectId:long}")] HttpRequestData req,
         long projectId)
     {
-        if (!TryGetUserId(req, out var userId, out var error))
-        {
-            return req.Error(HttpStatusCode.Unauthorized, error);
-        }
+        var (ok, auth, _) = await authFactory.BindAsync(req, req.FunctionContext.CancellationToken);
+        if (!ok || auth is null) return req.Error(HttpStatusCode.Unauthorized, "Auth required");
 
-        var project = await projectRepository.GetAsync(projectId, userId);
+        var project = await projectRepository.GetAsync(projectId, auth.UserId);
         if (project is null)
         {
             return req.Error(HttpStatusCode.NotFound, "Project not found or access denied.");
@@ -59,10 +57,8 @@ public sealed class ProjectsFunctions
     public async Task<HttpResponseData> CreateAsync(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "projects")] HttpRequestData req)
     {
-        if (!TryGetUserId(req, out var userId, out var error))
-        {
-            return req.Error(HttpStatusCode.Unauthorized, error);
-        }
+        var (ok, auth, _) = await authFactory.BindAsync(req, req.FunctionContext.CancellationToken);
+        if (!ok || auth is null) return req.Error(HttpStatusCode.Unauthorized, "Auth required");
 
         CreateProjectRequest? payload;
         try
@@ -80,36 +76,17 @@ public sealed class ProjectsFunctions
             return req.Error(HttpStatusCode.BadRequest, "Name is required.");
         }
 
-        var projectId = await projectRepository.CreateAsync(payload.Name.Trim(), payload.Description ?? string.Empty, userId, req.FunctionContext.CancellationToken);
+        var projectId = await projectRepository.CreateAsync(payload.Name.Trim(), payload.Description ?? string.Empty, auth.UserId, req.FunctionContext.CancellationToken);
         var created = new ProjectRecord
         {
             Id = projectId,
             Name = payload.Name.Trim(),
             Description = payload.Description ?? string.Empty,
-            CreatedByUserId = userId,
+            CreatedByUserId = auth.UserId,
             CreatedAtUtc = DateTime.UtcNow,
             IsArchived = false
         };
         return await req.ToJsonAsync(created, HttpStatusCode.Created, jsonOptions);
-    }
-
-    internal static bool TryGetUserId(HttpRequestData req, out long userId, out string error)
-    {
-        userId = 0;
-        error = string.Empty;
-        if (!req.Headers.TryGetValues("x-user-id", out var values))
-        {
-            error = "Missing x-user-id header (stub auth).";
-            return false;
-        }
-
-        var raw = values.FirstOrDefault();
-        if (!long.TryParse(raw, out userId) || userId <= 0)
-        {
-            error = "Invalid x-user-id header.";
-            return false;
-        }
-        return true;
     }
 
     private sealed record CreateProjectRequest(string Name, string? Description);

@@ -1,19 +1,34 @@
 export type HttpMethod = 'GET' | 'POST' | 'DELETE';
 
+export type RegisteredUser = { id: number; email: string; displayName: string; createdAtUtc: string };
+
 const API_BASE = import.meta.env.VITE_API_BASE ?? '/api';
 
-const defaultHeaders = () => ({
-  'Content-Type': 'application/json',
-  // Dev stub auth: replace with real token later.
-  'x-user-id': localStorage.getItem('dc.userId') ?? '1',
-  'x-user-email': localStorage.getItem('dc.email') ?? 'owner@example.com',
-  'x-user-name': localStorage.getItem('dc.name') ?? 'Owner User',
-});
+const defaultHeaders = () => {
+  const userId = localStorage.getItem('dc.userId');
+  const email = localStorage.getItem('dc.email');
+  const name = localStorage.getItem('dc.name');
 
-export async function api<T>(path: string, method: HttpMethod = 'GET', body?: unknown): Promise<T> {
+  if (!userId || Number.isNaN(Number(userId)) || Number(userId) <= 0) {
+    throw new Error('User not registered. Please sign up first.');
+  }
+
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    'x-user-id': userId,
+  };
+
+  if (email) headers['x-user-email'] = email;
+  if (name) headers['x-user-name'] = name;
+  return headers;
+};
+
+export async function api<T>(path: string, method: HttpMethod = 'GET', body?: unknown, opts?: { skipAuth?: boolean }): Promise<T> {
+  const headers = opts?.skipAuth ? { 'Content-Type': 'application/json' } : defaultHeaders();
+
   const res = await fetch(`${API_BASE}${path}`, {
     method,
-    headers: defaultHeaders(),
+    headers,
     body: body ? JSON.stringify(body) : undefined,
   });
 
@@ -28,6 +43,11 @@ export async function api<T>(path: string, method: HttpMethod = 'GET', body?: un
 export const ProjectsApi = {
   list: () => api<any[]>('/projects'),
   create: (name: string, description: string) => api<any>('/projects', 'POST', { name, description }),
+};
+
+export const AuthApi = {
+  register: (email: string, displayName: string) =>
+    api<RegisteredUser>('/auth/register', 'POST', { email, displayName }, { skipAuth: true }),
 };
 
 export const CodesApi = {

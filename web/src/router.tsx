@@ -1,5 +1,7 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 import AppShell from './shell/AppShell';
+import RequireAuth from './shell/RequireAuth';
+import Register from './views/Register';
 import Projects from './views/Projects';
 import Recommend from './views/Recommend';
 import Generate from './views/Generate';
@@ -14,7 +16,11 @@ import NotFound from './views/NotFound';
 const router = createBrowserRouter([
   {
     path: '/',
-    element: <AppShell />,
+    element: (
+      <RequireAuth>
+        <AppShell />
+      </RequireAuth>
+    ),
     children: [
       { index: true, element: <Navigate to="/projects" replace /> },
       { path: 'projects', element: <Projects /> },
@@ -29,6 +35,7 @@ const router = createBrowserRouter([
       { path: '*', element: <NotFound /> },
     ],
   },
+  { path: '/register', element: <Register /> },
 ]);
 
 export default router;

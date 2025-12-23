@@ -10,7 +10,7 @@
   - `ConnectionStrings__Db=<sanitized Npgsql connection string>`
   - or `DbConnection=<sanitized Npgsql connection string>`
 - Optional API keys path: `ApiKeysPath` (defaults to `data/apikeys.json`).
-- Dev auth: headers `x-user-id`, `x-user-email`, `x-user-name` are used in lieu of real tokens. Replace with real token validation before production.
+- Dev auth: register first (`POST /auth/register` or via the UI) to get a user id, then pass headers `x-user-id`, `x-user-email`, `x-user-name` (UI sets them from localStorage). Replace with real token validation before production.
 
 ### Neon connection tips
 - Remove unsupported params like `channel_binding` (sanitizer in code also handles this).
@@ -32,6 +32,7 @@ Key endpoints (all prefixed with `/api`):
 - Audit: `GET /projects/{id}/audit`
 - Settings: `GET/POST /projects/{id}/settings`
 - AI: `POST /projects/{id}/ai/interpret`, `POST /projects/{id}/ai/recommend`
+- Auth: `POST /auth/register` (dev-time registration to receive a user id)
 
 ## Frontend (React + Vite, dark mode)
 ```bash
@@ -42,9 +43,10 @@ npm run dev   # or npm run build
 
 Dev auth: set in browser console/localStorage to impersonate:
 ```js
-localStorage.setItem('dc.userId', '1');
-localStorage.setItem('dc.email', 'owner@example.com');
-localStorage.setItem('dc.name', 'Owner User');
+// Use the Register screen in the app or call POST /auth/register to get these values.
+localStorage.setItem('dc.userId', '<user id>');
+localStorage.setItem('dc.email', '<email>');
+localStorage.setItem('dc.name', '<display name>');
 ```
 
 Select a project on the Projects page; the selection is stored and used across pages.
@@ -57,4 +59,3 @@ Select a project on the Projects page; the selection is stored and used across p
 ## Quick sanity checks
 - `dotnet build DocControlApp.sln`
 - `cd web && npm run build`
-

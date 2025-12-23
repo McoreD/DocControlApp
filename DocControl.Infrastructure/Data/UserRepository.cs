@@ -12,7 +12,7 @@ public sealed class UserRepository
         this.factory = factory;
     }
 
-    public async Task<long> GetOrCreateAsync(string email, string displayName, CancellationToken cancellationToken = default)
+    public async Task<UserRecord> RegisterAsync(string email, string displayName, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(email);
         if (string.IsNullOrWhiteSpace(displayName)) displayName = email;
@@ -24,13 +24,30 @@ public sealed class UserRepository
             INSERT INTO Users (Email, DisplayName, CreatedAtUtc)
             VALUES (@email, @name, now() at time zone 'utc')
             ON CONFLICT (Email) DO UPDATE SET DisplayName = EXCLUDED.DisplayName
-            RETURNING Id;";
+            RETURNING Id, Email, DisplayName, CreatedAtUtc;";
 
         await using var cmd = new NpgsqlCommand(sql, conn);
         cmd.Parameters.AddWithValue("@email", email);
         cmd.Parameters.AddWithValue("@name", displayName);
-        var result = await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
-        return Convert.ToInt64(result ?? throw new InvalidOperationException("Failed to upsert user."));
+        await using var reader = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+        if (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+        {
+            return new UserRecord
+            {
+                Id = reader.GetInt64(0),
+                Email = reader.GetString(1),
+                DisplayName = reader.GetString(2),
+                CreatedAtUtc = reader.GetDateTime(3)
+            };
+        }
+
+        throw new InvalidOperationException("Failed to register user.");
+    }
+
+    public async Task<long> GetOrCreateAsync(string email, string displayName, CancellationToken cancellationToken = default)
+    {
+        var user = await RegisterAsync(email, displayName, cancellationToken).ConfigureAwait(false);
+        return user.Id;
     }
 
     public async Task<UserRecord?> GetByIdAsync(long userId, CancellationToken cancellationToken = default)
