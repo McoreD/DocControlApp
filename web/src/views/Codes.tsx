@@ -59,19 +59,20 @@ export default function Codes() {
             <table className="table">
               <thead>
                 <tr>
+                  <th>Level</th>
                   <th>Code</th>
                   <th>Description</th>
-                  <th>Next</th>
                 </tr>
               </thead>
               <tbody>
                 {codes.map((c) => {
-                  const key = [c.key.level1, c.key.level2, c.key.level3, c.key.level4].filter(Boolean).join('-');
+                  const level = c.key.level4 ? 4 : c.key.level3 ? 3 : c.key.level2 ? 2 : 1;
+                  const code = [c.key.level1, c.key.level2, c.key.level3, c.key.level4].filter(Boolean).join('-');
                   return (
                     <tr key={c.id}>
-                      <td>{key}</td>
+                      <td>{level}</td>
+                      <td>{code}</td>
                       <td className="muted">{c.description ?? ''}</td>
-                      <td className="muted">{c.nextNumber}</td>
                     </tr>
                   );
                 })}
