@@ -69,9 +69,9 @@ public sealed class CodeSeriesRepository
         await tx.CommitAsync(cancellationToken).ConfigureAwait(false);
     }
 
-    public async Task<IReadOnlyList<(long Id, CodeSeriesKey Key, string? Description, int NextNumber)>> ListAsync(long projectId, CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<CodeSeriesRecord>> ListAsync(long projectId, CancellationToken cancellationToken = default)
     {
-        var list = new List<(long, CodeSeriesKey, string?, int)>();
+        var list = new List<CodeSeriesRecord>();
         await using var conn = factory.Create();
         await conn.OpenAsync(cancellationToken).ConfigureAwait(false);
 
@@ -90,7 +90,13 @@ public sealed class CodeSeriesRepository
                 Level3 = reader.GetString(4),
                 Level4 = reader.IsDBNull(5) ? null : reader.GetString(5)
             };
-            list.Add((reader.GetInt64(0), key, reader.IsDBNull(6) ? null : reader.GetString(6), reader.GetInt32(7)));
+            list.Add(new CodeSeriesRecord
+            {
+                Id = reader.GetInt64(0),
+                Key = key,
+                Description = reader.IsDBNull(6) ? null : reader.GetString(6),
+                NextNumber = reader.GetInt32(7)
+            });
         }
         return list;
     }
