@@ -9,6 +9,7 @@ import Codes from './views/Codes';
 import Documents from './views/Documents';
 import Audit from './views/Audit';
 import ImportView from './views/ImportView';
+import Management from './views/Management';
 import Settings from './views/Settings';
 import Members from './views/Members';
 import NotFound from './views/NotFound';
@@ -32,6 +33,7 @@ const router = createBrowserRouter([
       { path: 'documents', element: <Documents /> },
       { path: 'audit', element: <Audit /> },
       { path: 'import', element: <ImportView /> },
+      { path: 'management', element: <Management /> },
       { path: 'settings', element: <Settings /> },
       { path: 'mfa', element: <MfaSetup /> },
       { path: '*', element: <NotFound /> },

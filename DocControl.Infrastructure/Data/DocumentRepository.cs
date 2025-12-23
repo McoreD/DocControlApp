@@ -74,6 +74,18 @@ public sealed class DocumentRepository
         return result != null;
     }
 
+    public async Task<int> PurgeAsync(long projectId, CancellationToken cancellationToken = default)
+    {
+        await using var conn = factory.Create();
+        await conn.OpenAsync(cancellationToken).ConfigureAwait(false);
+
+        const string sql = @"DELETE FROM Documents WHERE ProjectId = @ProjectId;";
+        await using var cmd = new NpgsqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("@ProjectId", projectId);
+        var affected = await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+        return affected;
+    }
+
     public async Task<IReadOnlyList<DocumentRecord>> GetRecentAsync(long projectId, int take = 50, CancellationToken cancellationToken = default)
     {
         var list = new List<DocumentRecord>();

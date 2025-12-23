@@ -132,6 +132,21 @@ public sealed class DocumentsFunctions
         return await req.ToJsonAsync(new { id = docId, number = allocated.Number, fileName }, HttpStatusCode.Created, jsonOptions);
     }
 
+    [Function("Documents_Purge")]
+    public async Task<HttpResponseData> PurgeAsync(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "projects/{projectId:long}/documents")] HttpRequestData req,
+        long projectId)
+    {
+        var (ok, auth, _) = await authFactory.BindAsync(req, req.FunctionContext.CancellationToken);
+        if (!ok || auth is null) return await req.ErrorAsync(HttpStatusCode.Unauthorized, "Auth required");
+        if (!auth.MfaEnabled) return await req.ErrorAsync(HttpStatusCode.Forbidden, "MFA required");
+        if (!await IsAtLeast(projectId, auth.UserId, Roles.Owner, req.FunctionContext.CancellationToken)) return await req.ErrorAsync(HttpStatusCode.Forbidden, "Owner role required");
+
+        var deleted = await documentRepository.PurgeAsync(projectId, req.FunctionContext.CancellationToken).ConfigureAwait(false);
+        await auditRepository.InsertAsync(projectId, "DocumentsPurged", $"deleted:{deleted}", auth.UserId, DateTime.UtcNow, null, req.FunctionContext.CancellationToken).ConfigureAwait(false);
+        return await req.ToJsonAsync(new { deleted }, HttpStatusCode.OK, jsonOptions);
+    }
+
     [Function("Audit_List")]
     public async Task<HttpResponseData> AuditListAsync(
         [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "projects/{projectId:long}/audit")] HttpRequestData req,

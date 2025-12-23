@@ -80,6 +80,7 @@ export const DocumentsApi = {
     projectId: number,
     entries: { code: string; fileName?: string; freeText?: string; description?: string }[],
   ) => api<any>(`/projects/${projectId}/documents/import`, 'POST', { entries }),
+  purge: (projectId: number) => api<{ deleted: number }>(`/projects/${projectId}/documents`, 'DELETE'),
 };
 
 export const AuditApi = {
