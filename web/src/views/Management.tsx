@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { DocumentsApi } from '../lib/api';
+import { CodesApi, DocumentsApi } from '../lib/api';
 import { useProject } from '../lib/projectContext';
 
 export default function Management() {
