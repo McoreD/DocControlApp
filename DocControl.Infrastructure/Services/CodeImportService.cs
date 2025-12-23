@@ -15,7 +15,8 @@ public sealed class CodeImportService
     public async Task<CodeImportResult> ImportCodesFromCsvAsync(long projectId, string csvContent, CancellationToken cancellationToken = default)
     {
         var result = new CodeImportResult();
-        var lines = csvContent.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries);
+        // Split on CR/LF using explicit char array to avoid overload ambiguity on newer frameworks
+        var lines = csvContent.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
         
         if (lines.Length == 0)
         {
