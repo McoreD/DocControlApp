@@ -32,8 +32,11 @@ export default function ImportView() {
       .map((l: string) => l.trim())
       .filter(Boolean)
       .map((line: string) => {
-        const parts = line.split(/\s+/, 2);
-        return { code: parts[0], fileName: parts[1] ?? parts[0] };
+        // Expect "CODE rest of filename", keep the full line as the file name and the tail as free text
+        const match = line.match(/^(\S+)\s+(.+)$/);
+        if (!match) return { code: line, fileName: line };
+        const [, code, tail] = match;
+        return { code, fileName: line, freeText: tail };
       });
     if (entries.length === 0) return;
     setLoading(true);
