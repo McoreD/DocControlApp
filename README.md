@@ -1,63 +1,61 @@
 # DocControl App (Backend + Frontend)
+Project tracking, document numbering, code catalog, audit log, and basic AI helpers. Backend runs on Azure Functions (isolated) with PostgreSQL; frontend is React/Vite.
 
-## Prerequisites
-- .NET 10 SDK
-- Node.js 20+ (for frontend)
-- PostgreSQL (Neon connection string preferred)
+## Requirements
+- .NET 8 SDK
+- Node.js 20+
+- PostgreSQL (Neon friendly; SSL required)
 
 ## Environment (Functions)
-- Set database connection (exact casing matters on Linux):
-  - `ConnectionStrings__Db=<sanitized Npgsql connection string>`
-  - or `DbConnection=<sanitized Npgsql connection string>`
-- Optional API keys path: `ApiKeysPath` (defaults to `data/apikeys.json`).
-- Dev auth: register first (`POST /auth/register` or via the UI) to get a user id, then pass headers `x-user-id`, `x-user-email`, `x-user-name` (UI sets them from localStorage). After registering, you must enable TOTP 2FA (`/auth/mfa/start` then `/auth/mfa/verify`). Replace with real token validation before production.
+- Configure database connection (case matters on Linux):
+  - `ConnectionStrings__Db=<Npgsql connection string>` **or** `DbConnection=<Npgsql connection string>`
+- Optional: `ApiKeysPath` for AI keys (defaults to `data/apikeys.json`)
+- Auth/dev flow: register first (`POST /auth/register` or via the UI) to get a user id, then pass headers `x-user-id`, `x-user-email`, `x-user-name` (UI persists these). MFA is mandatory: call `/auth/mfa/start` then `/auth/mfa/verify` (the UI also offers QR).
 
 ### Neon connection tips
-- Remove unsupported params like `channel_binding` (sanitizer in code also handles this).
+- Remove unsupported params like `channel_binding` (the runtime also sanitizes).
 - Ensure `SSL Mode=Require`.
 
 ## Backend (Azure Functions isolated)
 ```bash
 cd DocControl.Api
-# local.settings.json already has a sample; replace DbConnection with your Neon string
+# local.settings.json contains a sample; replace DbConnection with your Postgres string
 dotnet build
-func start   # or dotnet run
+func start   # or: dotnet run
 ```
-
 Key endpoints (all prefixed with `/api`):
 - Projects: `GET/POST /projects`, `GET /projects/{projectId}`
 - Members/Invites: `GET /projects/{id}/members`, `POST /projects/{id}/invites`, `POST /invites/accept`, `POST /projects/{id}/members/{userId}/role`, `DELETE /projects/{id}/members/{userId}`
 - Codes: `GET /projects/{id}/codes`, `POST /projects/{id}/codes`, `DELETE /projects/{id}/codes/{codeSeriesId}`, `POST /projects/{id}/codes/import` (CSV `Level,Code,Code Description`)
-- Documents: `GET /projects/{id}/documents`, `GET /projects/{id}/documents/{docId}`, `POST /projects/{id}/documents`, `POST /projects/{id}/documents/import` (lines: `CODE filename`)
+- Documents: `GET /projects/{id}/documents`, `GET /projects/{id}/documents/{docId}`, `POST /projects/{id}/documents`, `POST /projects/{id}/documents/import` (lines: `CODE filename`), `DELETE /projects/{id}/documents` (owner-only purge)
 - Audit: `GET /projects/{id}/audit`
 - Settings: `GET/POST /projects/{id}/settings`
 - AI: `POST /projects/{id}/ai/interpret`, `POST /projects/{id}/ai/recommend`
 - Auth: `POST /auth/register`, `GET /auth/me`, `POST /auth/mfa/start`, `POST /auth/mfa/verify`
-- Auth: `POST /auth/register` (dev-time registration to receive a user id)
 
-## Frontend (React + Vite, dark mode)
+## Frontend (React + Vite)
 ```bash
 cd web
 npm install
-npm run dev   # or npm run build
+npm run dev     # or: npm run build
 ```
+Features: project switcher, code catalog table, document generator/importer, members & roles, audit, settings, AI recommend/interpret, management (document purge), MFA setup with QR.
 
-Dev auth: set in browser console/localStorage to impersonate:
+### Dev auth shortcut
+Use the Register screen or set localStorage directly after calling `/auth/register`:
 ```js
-// Use the Register screen in the app or call POST /auth/register to get these values.
 localStorage.setItem('dc.userId', '<user id>');
 localStorage.setItem('dc.email', '<email>');
 localStorage.setItem('dc.name', '<display name>');
-localStorage.setItem('dc.mfa', 'true'); // set to true after completing /auth/mfa/start + /auth/mfa/verify
+localStorage.setItem('dc.mfa', 'true'); // set true after /auth/mfa/verify
 ```
+Pick a project on the Projects page; selection is persisted.
 
-Select a project on the Projects page; the selection is stored and used across pages.
+## Production TODOs
+- Replace header-based dev auth with real OIDC/PKCE token validation and map roles per project.
+- Swap CredentialManagement for a secret store/Key Vault to clear NuGet warnings.
+- Add richer UX (toasts/spinners) as desired.
 
-## Remaining production tasks
-- Replace header-based auth with real OIDC/PKCE token validation and map roles per project.
-- Swap `CredentialManagement` for Key Vault/secret store to clear NuGet warnings.
-- Add error toasts/spinners as desired.
-
-## Quick sanity checks
+## Quick checks
 - `dotnet build DocControlApp.sln`
 - `cd web && npm run build`
