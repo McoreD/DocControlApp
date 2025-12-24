@@ -25,6 +25,7 @@ builder.Services.Configure<JsonSerializerOptions>(options =>
 {
     options.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
     options.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
+    options.Converters.Add(new JsonStringEnumConverter());
 });
 
 builder.Services.AddSingleton(provider =>
