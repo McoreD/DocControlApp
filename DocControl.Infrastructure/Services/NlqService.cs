@@ -103,9 +103,23 @@ public sealed class NlqService
 
         var request = new AiStructuredRequest
         {
-            Prompt = $"User query: {query}\n\nAvailable codes (level, code, description): {catalogJson}\n\nPick the best matching existing codes for level1/2/3 from the list. If none are good, suggest new alphanumeric codes. Return JSON only.",
+            Prompt = $@"You are a strict code recommender. Given the user request and the catalog, choose exactly one best code per level (1-3) from the catalog if available; do not concatenate multiple codes into a single field. If no suitable code exists for a level, invent a concise alphanumeric code and mark the reason.
+
+User query: {query}
+
+Catalog (array of objects): {catalogJson}
+
+Rules:
+- level1 must be a single level-1 code (no separators). Pick the best match; do not combine multiple codes.
+- level2 must be a single level-2 code (no separators). Pick the best match; do not combine multiple codes.
+- level3 must be a single level-3 code (no separators). Pick the best match; do not combine multiple codes.
+- level4 is optional; leave empty/null unless clearly required.
+- freeText should be a short human-readable description of the document/request.
+- Reason should briefly explain why you chose these codes.
+
+Return JSON only.",
             ResponseSchema = schema,
-            SystemInstruction = "Return a strict JSON object with level1, level2, level3, optional level4, freeText, and a brief reason. Use existing codes when possible."
+            SystemInstruction = "Return a strict JSON object with level1, level2, level3, optional level4, freeText, and a brief reason. Use existing codes when possible. Never concatenate multiple codes into one field."
         };
 
         var result = await orchestrator.ExecuteAsync(request, cancellationToken: cancellationToken).ConfigureAwait(false);
