@@ -42,6 +42,7 @@ function downloadFile(contents: string, filename: string, mime = 'text/plain') {
 export default function Management() {
   const { projectId } = useProject();
   const [loading, setLoading] = useState(false);
+  const [currentAction, setCurrentAction] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -55,6 +56,7 @@ export default function Management() {
     const text = await pickFileText({ accept: '.csv,text/csv' });
     if (!text) return;
     setLoading(true);
+    setCurrentAction('importCodesCsv');
     resetStatus();
     try {
       const result = await CodesApi.importCsv(projectId, text);
@@ -65,6 +67,7 @@ export default function Management() {
       setError(err.message ?? 'Code import failed');
     } finally {
       setLoading(false);
+      setCurrentAction(null);
     }
   };
 
@@ -73,6 +76,7 @@ export default function Management() {
     const text = await pickFileText({ accept: '.json,application/json' });
     if (!text) return;
     setLoading(true);
+    setCurrentAction('importCodesJson');
     resetStatus();
     try {
       const parsed = JSON.parse(text);
@@ -83,12 +87,14 @@ export default function Management() {
       setError(err.message ?? 'Code import failed');
     } finally {
       setLoading(false);
+      setCurrentAction(null);
     }
   };
 
   const exportCodesJson = async () => {
     if (!projectId) return;
     setLoading(true);
+    setCurrentAction('exportCodesJson');
     resetStatus();
     try {
       const data = await CodesApi.exportJson(projectId);
@@ -98,12 +104,14 @@ export default function Management() {
       setError(err.message ?? 'Export failed');
     } finally {
       setLoading(false);
+      setCurrentAction(null);
     }
   };
 
   const exportCodesCsv = async () => {
     if (!projectId) return;
     setLoading(true);
+    setCurrentAction('exportCodesCsv');
     resetStatus();
     try {
       const data = await CodesApi.exportJson(projectId);
@@ -120,6 +128,7 @@ export default function Management() {
       setError(err.message ?? 'Export failed');
     } finally {
       setLoading(false);
+      setCurrentAction(null);
     }
   };
 
@@ -128,6 +137,7 @@ export default function Management() {
     const text = await pickFileText({ accept: '.csv,text/csv' });
     if (!text) return;
     setLoading(true);
+    setCurrentAction('importDocsCsv');
     resetStatus();
     try {
       const count = (() => {
@@ -145,6 +155,7 @@ export default function Management() {
       setError(err.message ?? 'Document import failed');
     } finally {
       setLoading(false);
+      setCurrentAction(null);
     }
   };
 
@@ -153,6 +164,7 @@ export default function Management() {
     const text = await pickFileText({ accept: '.json,application/json' });
     if (!text) return;
     setLoading(true);
+    setCurrentAction('importDocsJson');
     resetStatus();
     try {
       const parsed = JSON.parse(text);
@@ -165,12 +177,14 @@ export default function Management() {
       setError(err.message ?? 'Document import failed');
     } finally {
       setLoading(false);
+      setCurrentAction(null);
     }
   };
 
   const exportDocsJson = async () => {
     if (!projectId) return;
     setLoading(true);
+    setCurrentAction('exportDocsJson');
     resetStatus();
     try {
       const data = await DocumentsApi.exportJson(projectId);
@@ -180,12 +194,14 @@ export default function Management() {
       setError(err.message ?? 'Export failed');
     } finally {
       setLoading(false);
+      setCurrentAction(null);
     }
   };
 
   const exportDocsCsv = async () => {
     if (!projectId) return;
     setLoading(true);
+    setCurrentAction('exportDocsCsv');
     resetStatus();
     try {
       const data = await DocumentsApi.exportJson(projectId);
@@ -202,6 +218,7 @@ export default function Management() {
       setError(err.message ?? 'Export failed');
     } finally {
       setLoading(false);
+      setCurrentAction(null);
     }
   };
 
@@ -210,6 +227,7 @@ export default function Management() {
     const confirmed = window.confirm('This will permanently delete all documents in this project. Continue?');
     if (!confirmed) return;
     setLoading(true);
+    setCurrentAction('purgeDocuments');
     resetStatus();
     try {
       const result = await DocumentsApi.purge(projectId);
@@ -218,6 +236,7 @@ export default function Management() {
       setError(err.message ?? 'Failed to purge documents');
     } finally {
       setLoading(false);
+      setCurrentAction(null);
     }
   };
 
@@ -226,6 +245,7 @@ export default function Management() {
     const confirmed = window.confirm('Permanently delete all codes (and their documents). Continue?');
     if (!confirmed) return;
     setLoading(true);
+    setCurrentAction('purgeCodes');
     resetStatus();
     try {
       const result = await CodesApi.purge(projectId);
@@ -234,6 +254,7 @@ export default function Management() {
       setError(err.message ?? 'Failed to purge codes');
     } finally {
       setLoading(false);
+      setCurrentAction(null);
     }
   };
 
@@ -293,10 +314,10 @@ MIC-GAI-BST-002,DocControl Scope`}
             </p>
             <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
               <button onClick={purgeDocuments} disabled={loading} style={{ background: '#b91c1c' }}>
-                {loading ? 'Purging...' : 'Purge documents'}
+                {loading && currentAction === 'purgeDocuments' ? 'Purging...' : 'Purge documents'}
               </button>
               <button onClick={purgeCodes} disabled={loading} style={{ background: '#b91c1c' }}>
-                {loading ? 'Purging...' : 'Purge codes'}
+                {loading && currentAction === 'purgeCodes' ? 'Purging...' : 'Purge codes'}
               </button>
             </div>
           </div>
