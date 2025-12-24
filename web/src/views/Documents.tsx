@@ -42,8 +42,12 @@ export default function Documents() {
     try {
       const skip = (page - 1) * pageSize;
       const data = await DocumentsApi.list(projectId, { q, take: pageSize, skip });
-      const items = Array.isArray(data.items) ? data.items : Array.isArray(data) ? data : [];
-      const totalCount = typeof data.total === 'number' ? data.total : items.length;
+      const items = Array.isArray(data)
+        ? data
+        : Array.isArray(data.items)
+          ? data.items
+          : [];
+      const totalCount = Array.isArray(data) ? data.length : typeof data.total === 'number' ? data.total : items.length;
       setDocs(items);
       setTotal(totalCount);
     } catch (err: any) {
