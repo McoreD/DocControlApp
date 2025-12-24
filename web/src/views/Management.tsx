@@ -234,12 +234,23 @@ export default function Management() {
         <>
           <div className="card" style={{ marginTop: 12 }}>
             <strong>Import</strong>
-            <p className="muted">Codes</p>
+            <p className="muted">Codes (CSV: Level,Code,Code Description)</p>
+            <pre style={{ whiteSpace: 'pre-wrap', background: '#0f172a', color: '#e2e8f0', padding: 8, borderRadius: 6 }}>
+{`Level,Code,Code Description
+1,DFT,Delpach Family Trust
+2,GOV,Governance
+3,REG,Registers`}
+            </pre>
             <div className="row" style={{ gap: 8 }}>
               <button onClick={importCodesCsv} disabled={loading}>Import Codes CSV</button>
               <button onClick={importCodesJson} disabled={loading}>Import Codes JSON</button>
             </div>
-            <p className="muted" style={{ marginTop: 12 }}>Documents</p>
+            <p className="muted" style={{ marginTop: 12 }}>Documents (CSV: Code,FreeText)</p>
+            <pre style={{ whiteSpace: 'pre-wrap', background: '#0f172a', color: '#e2e8f0', padding: 8, borderRadius: 6 }}>
+{`Code,FreeText
+DFT-GOV-PLN-001,Governance Plan
+MIC-GAI-BST-002,DocControl Scope`}
+            </pre>
             <div className="row" style={{ gap: 8 }}>
               <button onClick={importDocsCsv} disabled={loading}>Import Documents CSV</button>
               <button onClick={importDocsJson} disabled={loading}>Import Documents JSON</button>
