@@ -3,11 +3,6 @@
     {
       "route": "/api/*",
       "allowedRoles": ["anonymous", "authenticated"]
-    },
-    {
-      "route": "/*",
-      "serve": "/index.html",
-      "statusCode": 200
     }
   ],
   "navigationFallback": {
