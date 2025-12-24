@@ -86,7 +86,7 @@ public sealed class ImportsFunctions
             return await req.ErrorAsync(HttpStatusCode.BadRequest, "No entries");
         }
 
-        var config = await configService.LoadDocumentConfigAsync(projectId, req.FunctionContext.CancellationToken).ConfigureAwait(false);
+        var config = await configService.LoadDocumentConfigAsync(projectId, auth.UserId, req.FunctionContext.CancellationToken).ConfigureAwait(false);
         var now = DateTime.UtcNow;
         var importNote = $"Imported on {now:yyyy-MM-dd HH:mm 'UTC'} by {auth.DisplayName}";
         var imported = 0;
@@ -142,7 +142,7 @@ public sealed class ImportsFunctions
         if (!auth.MfaEnabled) return await req.ErrorAsync(HttpStatusCode.Forbidden, "MFA required");
         if (!await IsAtLeast(projectId, auth.UserId, Roles.Contributor, req.FunctionContext.CancellationToken)) return await req.ErrorAsync(HttpStatusCode.Forbidden, "Contributor role required");
 
-        var config = await configService.LoadDocumentConfigAsync(projectId, req.FunctionContext.CancellationToken).ConfigureAwait(false);
+        var config = await configService.LoadDocumentConfigAsync(projectId, auth.UserId, req.FunctionContext.CancellationToken).ConfigureAwait(false);
         var csv = await new StreamReader(req.Body).ReadToEndAsync();
         if (string.IsNullOrWhiteSpace(csv)) return await req.ErrorAsync(HttpStatusCode.BadRequest, "CSV payload empty");
 
@@ -200,7 +200,7 @@ public sealed class ImportsFunctions
         if (!auth.MfaEnabled) return await req.ErrorAsync(HttpStatusCode.Forbidden, "MFA required");
         if (!await IsAtLeast(projectId, auth.UserId, Roles.Contributor, req.FunctionContext.CancellationToken)) return await req.ErrorAsync(HttpStatusCode.Forbidden, "Contributor role required");
 
-        var config = await configService.LoadDocumentConfigAsync(projectId, req.FunctionContext.CancellationToken).ConfigureAwait(false);
+        var config = await configService.LoadDocumentConfigAsync(projectId, auth.UserId, req.FunctionContext.CancellationToken).ConfigureAwait(false);
         IReadOnlyList<ImportDocumentEntry>? entries = null;
         try
         {
