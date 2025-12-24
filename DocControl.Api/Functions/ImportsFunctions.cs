@@ -114,8 +114,11 @@ public sealed class ImportsFunctions
                 Level3 = key.Level3,
                 Level4 = key.Level4
             };
-            await codeSeriesRepository.UpsertAsync(key, entry.Description ?? string.Empty, number, req.FunctionContext.CancellationToken);
-        await documentRepository.UpsertImportedAsync(key, number, entry.FreeText ?? string.Empty, entry.FileName ?? entry.Code, auth.UserId, now, req.FunctionContext.CancellationToken);
+            var description = !string.IsNullOrWhiteSpace(entry.Description)
+                ? entry.Description
+                : (!string.IsNullOrWhiteSpace(entry.FreeText) ? entry.FreeText : null);
+            await codeSeriesRepository.UpsertAsync(key, description, number + 1, req.FunctionContext.CancellationToken);
+            await documentRepository.UpsertImportedAsync(key, number, entry.FreeText ?? string.Empty, entry.FileName ?? entry.Code, auth.UserId, now, req.FunctionContext.CancellationToken);
             imported++;
         }
 
@@ -154,7 +157,8 @@ public sealed class ImportsFunctions
                 continue;
             }
             key = new CodeSeriesKey { ProjectId = projectId, Level1 = key.Level1, Level2 = key.Level2, Level3 = key.Level3, Level4 = key.Level4 };
-            await codeSeriesRepository.UpsertAsync(key, null, number, req.FunctionContext.CancellationToken);
+            var description = string.IsNullOrWhiteSpace(freeText) ? null : freeText;
+            await codeSeriesRepository.UpsertAsync(key, description, number + 1, req.FunctionContext.CancellationToken);
             await documentRepository.UpsertImportedAsync(key, number, freeText, codeRaw, auth.UserId, now, req.FunctionContext.CancellationToken);
             imported++;
         }
@@ -211,7 +215,10 @@ public sealed class ImportsFunctions
                 continue;
             }
             key = new CodeSeriesKey { ProjectId = projectId, Level1 = key.Level1, Level2 = key.Level2, Level3 = key.Level3, Level4 = key.Level4 };
-            await codeSeriesRepository.UpsertAsync(key, entry.Description ?? string.Empty, number, req.FunctionContext.CancellationToken);
+            var description = !string.IsNullOrWhiteSpace(entry.Description)
+                ? entry.Description
+                : (!string.IsNullOrWhiteSpace(entry.FreeText) ? entry.FreeText : null);
+            await codeSeriesRepository.UpsertAsync(key, description, number + 1, req.FunctionContext.CancellationToken);
             await documentRepository.UpsertImportedAsync(key, number, entry.FreeText ?? string.Empty, entry.FileName ?? entry.Code, auth.UserId, now, req.FunctionContext.CancellationToken);
             imported++;
         }

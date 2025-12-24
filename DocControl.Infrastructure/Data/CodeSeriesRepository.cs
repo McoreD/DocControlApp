@@ -23,7 +23,11 @@ public sealed class CodeSeriesRepository
             ON CONFLICT(ProjectId, Level1, Level2, Level3, Level4)
             DO UPDATE SET
                 Description = CASE WHEN EXCLUDED.Description IS NULL OR EXCLUDED.Description = '' THEN CodeSeries.Description ELSE EXCLUDED.Description END,
-                NextNumber = COALESCE(@NextNumber, CodeSeries.NextNumber)
+                NextNumber = CASE
+                    WHEN @NextNumber IS NULL THEN CodeSeries.NextNumber
+                    WHEN CodeSeries.NextNumber >= @NextNumber THEN CodeSeries.NextNumber
+                    ELSE @NextNumber
+                END
             RETURNING Id;";
 
         await using var cmd = new NpgsqlCommand(sql, conn);
