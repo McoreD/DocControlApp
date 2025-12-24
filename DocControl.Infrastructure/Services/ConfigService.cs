@@ -67,6 +67,13 @@ public sealed class ConfigService
         return settings;
     }
 
+    public async Task<(bool hasOpenAi, bool hasGemini)> GetAiKeyStatusAsync(AiSettings settings, CancellationToken cancellationToken = default)
+    {
+        var openAiKey = await apiKeyStore.GetAsync(settings.OpenAiCredentialName, cancellationToken).ConfigureAwait(false);
+        var geminiKey = await apiKeyStore.GetAsync(settings.GeminiCredentialName, cancellationToken).ConfigureAwait(false);
+        return (!string.IsNullOrWhiteSpace(openAiKey), !string.IsNullOrWhiteSpace(geminiKey));
+    }
+
     public async Task SaveAiSettingsAsync(long projectId, AiSettings settings, string openAiKey, string geminiKey, CancellationToken cancellationToken = default)
     {
         var json = JsonSerializer.Serialize(settings);

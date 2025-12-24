@@ -19,6 +19,8 @@ export default function Settings() {
   const [ai, setAi] = useState<AiSettings>({ provider: 'OpenAi', openAiModel: 'gpt-4.1', geminiModel: 'gemini-3-flash-preview' });
   const [openAiKey, setOpenAiKey] = useState('');
   const [geminiKey, setGeminiKey] = useState('');
+  const [hasOpenAiKey, setHasOpenAiKey] = useState(false);
+  const [hasGeminiKey, setHasGeminiKey] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -30,6 +32,8 @@ export default function Settings() {
         const data = await SettingsApi.get(projectId);
         setDocConfig(data.documentConfig);
         setAi(data.aiSettings);
+        setHasOpenAiKey(data.hasOpenAiKey ?? false);
+        setHasGeminiKey(data.hasGeminiKey ?? false);
       } catch (err: any) {
         setError(err.message ?? 'Failed to load settings');
       }
@@ -49,6 +53,10 @@ export default function Settings() {
         geminiKey,
       });
       setMessage('Saved');
+      setHasOpenAiKey(!!openAiKey || hasOpenAiKey);
+      setHasGeminiKey(!!geminiKey || hasGeminiKey);
+      setOpenAiKey('');
+      setGeminiKey('');
     } catch (err: any) {
       setError(err.message ?? 'Failed to save');
     }
@@ -92,9 +100,11 @@ export default function Settings() {
               <label>Gemini Model</label>
               <input value={ai.geminiModel} onChange={(e) => setAi({ ...ai, geminiModel: e.target.value })} />
               <label>OpenAI Key (optional)</label>
-              <input value={openAiKey} onChange={(e) => setOpenAiKey(e.target.value)} />
+              <input value={openAiKey} onChange={(e) => setOpenAiKey(e.target.value)} placeholder={hasOpenAiKey ? 'Key stored' : undefined} />
+              {hasOpenAiKey && <span className="muted">Key is stored.</span>}
               <label>Gemini Key (optional)</label>
-              <input value={geminiKey} onChange={(e) => setGeminiKey(e.target.value)} />
+              <input value={geminiKey} onChange={(e) => setGeminiKey(e.target.value)} placeholder={hasGeminiKey ? 'Key stored' : undefined} />
+              {hasGeminiKey && <span className="muted">Key is stored.</span>}
             </div>
           </div>
         </div>

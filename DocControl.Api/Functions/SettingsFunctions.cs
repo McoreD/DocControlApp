@@ -49,8 +49,9 @@ public sealed class SettingsFunctions
 
         var documentConfig = await configService.LoadDocumentConfigAsync(projectId, req.FunctionContext.CancellationToken).ConfigureAwait(false);
         var aiSettings = await configService.LoadAiSettingsAsync(projectId, req.FunctionContext.CancellationToken).ConfigureAwait(false);
+        var (hasOpenAi, hasGemini) = await configService.GetAiKeyStatusAsync(aiSettings, req.FunctionContext.CancellationToken).ConfigureAwait(false);
 
-        return await req.ToJsonAsync(new ProjectSettingsResponse(documentConfig, aiSettings), HttpStatusCode.OK, jsonOptions);
+        return await req.ToJsonAsync(new ProjectSettingsResponse(documentConfig, aiSettings, hasOpenAi, hasGemini), HttpStatusCode.OK, jsonOptions);
     }
 
     [Function("Settings_Save")]
@@ -88,10 +89,11 @@ public sealed class SettingsFunctions
         await configService.SaveDocumentConfigAsync(projectId, payload.DocumentConfig, req.FunctionContext.CancellationToken).ConfigureAwait(false);
         await configService.SaveAiSettingsAsync(projectId, payload.AiSettings, payload.OpenAiKey ?? string.Empty, payload.GeminiKey ?? string.Empty, req.FunctionContext.CancellationToken).ConfigureAwait(false);
 
-        return await req.ToJsonAsync(new { status = "ok" }, HttpStatusCode.OK, jsonOptions);
+        var (hasOpenAi, hasGemini) = await configService.GetAiKeyStatusAsync(payload.AiSettings, req.FunctionContext.CancellationToken).ConfigureAwait(false);
+        return await req.ToJsonAsync(new { status = "ok", hasOpenAi, hasGemini }, HttpStatusCode.OK, jsonOptions);
     }
 }
 
-public sealed record ProjectSettingsResponse(DocumentConfig DocumentConfig, AiSettings AiSettings);
+public sealed record ProjectSettingsResponse(DocumentConfig DocumentConfig, AiSettings AiSettings, bool HasOpenAiKey, bool HasGeminiKey);
 
 public sealed record SaveProjectSettingsRequest(DocumentConfig DocumentConfig, AiSettings AiSettings, string? OpenAiKey, string? GeminiKey);
