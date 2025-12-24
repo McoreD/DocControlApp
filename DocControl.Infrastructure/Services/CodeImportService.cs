@@ -32,13 +32,15 @@ public sealed class CodeImportService
         string currentLevel1 = "";
         string currentLevel2 = "";
         string currentLevel3 = "";
+        string currentLevel4 = "";
+        string currentLevel5 = "";
 
         foreach (var line in dataLines)
         {
             var parts = ParseCsvLine(line);
             if (parts.Length < 2) continue;
 
-            if (!int.TryParse(parts[0].Trim(), out var level) || level < 1 || level > 4)
+            if (!int.TryParse(parts[0].Trim(), out var level) || level < 1 || level > 6)
             {
                 result.AddError($"Invalid level '{parts[0]}' in line: {line}");
                 continue;
@@ -63,18 +65,33 @@ public sealed class CodeImportService
                     currentLevel1 = code;
                     currentLevel2 = "";
                     currentLevel3 = "";
+                    currentLevel4 = "";
+                    currentLevel5 = "";
                 }
                 else if (level == 2)
                 {
                     currentLevel2 = code;
                     currentLevel3 = "";
+                    currentLevel4 = "";
+                    currentLevel5 = "";
                 }
                 else if (level == 3)
                 {
                     currentLevel3 = code;
+                    currentLevel4 = "";
+                    currentLevel5 = "";
+                }
+                else if (level == 4)
+                {
+                    currentLevel4 = code;
+                    currentLevel5 = "";
+                }
+                else if (level == 5)
+                {
+                    currentLevel5 = code;
                 }
 
-                var key = CreateCodeSeriesKeyFromHierarchy(projectId, level, currentLevel1, currentLevel2, currentLevel3, code);
+                var key = CreateCodeSeriesKeyFromHierarchy(projectId, level, currentLevel1, currentLevel2, currentLevel3, currentLevel4, currentLevel5, code);
                 codeSeriesData.Add((key, description, 1)); // Start with NextNumber = 1
                 result.SuccessCount++;
             }
@@ -99,14 +116,24 @@ public sealed class CodeImportService
         return result;
     }
 
-    private static CodeSeriesKey CreateCodeSeriesKeyFromHierarchy(long projectId, int level, string level1, string level2, string level3, string level4Code)
+    private static CodeSeriesKey CreateCodeSeriesKeyFromHierarchy(
+        long projectId,
+        int level,
+        string level1,
+        string level2,
+        string level3,
+        string level4,
+        string level5,
+        string level6Code)
     {
         return level switch
         {
-            1 => new CodeSeriesKey { ProjectId = projectId, Level1 = level1, Level2 = "", Level3 = "", Level4 = null },
-            2 => new CodeSeriesKey { ProjectId = projectId, Level1 = level1, Level2 = level2, Level3 = "", Level4 = null },
-            3 => new CodeSeriesKey { ProjectId = projectId, Level1 = level1, Level2 = level2, Level3 = level3, Level4 = null },
-            4 => new CodeSeriesKey { ProjectId = projectId, Level1 = level1, Level2 = level2, Level3 = level3, Level4 = level4Code },
+            1 => new CodeSeriesKey { ProjectId = projectId, Level1 = level1, Level2 = "", Level3 = "", Level4 = null, Level5 = null, Level6 = null },
+            2 => new CodeSeriesKey { ProjectId = projectId, Level1 = level1, Level2 = level2, Level3 = "", Level4 = null, Level5 = null, Level6 = null },
+            3 => new CodeSeriesKey { ProjectId = projectId, Level1 = level1, Level2 = level2, Level3 = level3, Level4 = null, Level5 = null, Level6 = null },
+            4 => new CodeSeriesKey { ProjectId = projectId, Level1 = level1, Level2 = level2, Level3 = level3, Level4 = level4, Level5 = null, Level6 = null },
+            5 => new CodeSeriesKey { ProjectId = projectId, Level1 = level1, Level2 = level2, Level3 = level3, Level4 = level4, Level5 = level5, Level6 = null },
+            6 => new CodeSeriesKey { ProjectId = projectId, Level1 = level1, Level2 = level2, Level3 = level3, Level4 = level4, Level5 = level5, Level6 = level6Code },
             _ => throw new ArgumentException($"Invalid level: {level}")
         };
     }

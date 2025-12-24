@@ -9,6 +9,8 @@ type Document = {
   level2: string;
   level3: string;
   level4?: string | null;
+  level5?: string | null;
+  level6?: string | null;
   number: number;
   createdAtUtc: string;
   freeText?: string | null;
@@ -76,8 +78,7 @@ export default function Documents() {
             </thead>
             <tbody>
               {docs.map((d) => {
-                const series = [d.level1, d.level2, d.level3, d.level4].filter(Boolean).join('-');
-                const code = `${series}-${String(d.number ?? '').padStart(3, '0')}`;
+                const code = (d.fileName ?? '').split(' ')[0] ?? '';
                 return (
                   <tr key={d.id}>
                     <td>{d.fileName}</td>

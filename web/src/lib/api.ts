@@ -44,8 +44,34 @@ export async function api<T>(path: string, method: HttpMethod = 'GET', body?: un
 
 export const ProjectsApi = {
   list: () => api<any[]>('/projects'),
-  create: (name: string, description: string, separator: string, paddingLength: number) =>
-    api<any>('/projects', 'POST', { name, description, separator, paddingLength }),
+  create: (
+    name: string,
+    description: string,
+    separator: string,
+    paddingLength: number,
+    levelCount: number,
+    levelLabels: string[],
+    levelLengths: number[],
+  ) =>
+    api<any>('/projects', 'POST', {
+      name,
+      description,
+      separator,
+      paddingLength,
+      levelCount,
+      level1Label: levelLabels[0],
+      level2Label: levelLabels[1],
+      level3Label: levelLabels[2],
+      level4Label: levelLabels[3],
+      level5Label: levelLabels[4],
+      level6Label: levelLabels[5],
+      level1Length: levelLengths[0],
+      level2Length: levelLengths[1],
+      level3Length: levelLengths[2],
+      level4Length: levelLengths[3],
+      level5Length: levelLengths[4],
+      level6Length: levelLengths[5],
+    }),
   get: (projectId: number) => api<any>(`/projects/${projectId}`),
   setDefault: (projectId: number) => api<any>(`/projects/${projectId}/default`, 'POST'),
 };
@@ -105,11 +131,29 @@ export const DocumentsApi = {
     api<any[]>(`/projects/${projectId}/documents${q ? `?q=${encodeURIComponent(q)}` : ''}`),
   create: (
     projectId: number,
-    payload: { level1: string; level2: string; level3: string; level4?: string; freeText?: string; extension?: string },
+    payload: {
+      level1: string;
+      level2: string;
+      level3: string;
+      level4?: string;
+      level5?: string;
+      level6?: string;
+      freeText?: string;
+      extension?: string;
+    },
   ) => api<any>(`/projects/${projectId}/documents`, 'POST', payload),
   preview: (
     projectId: number,
-    payload: { level1: string; level2: string; level3: string; level4?: string; freeText?: string; extension?: string },
+    payload: {
+      level1: string;
+      level2: string;
+      level3: string;
+      level4?: string;
+      level5?: string;
+      level6?: string;
+      freeText?: string;
+      extension?: string;
+    },
   ) => api<{ number: number; fileName: string }>(`/projects/${projectId}/documents/preview`, 'POST', payload),
   importCsv: async (projectId: number, csv: string) => {
     const headers = defaultHeaders();

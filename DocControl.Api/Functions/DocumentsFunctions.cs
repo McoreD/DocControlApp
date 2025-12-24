@@ -124,19 +124,34 @@ public sealed class DocumentsFunctions
             return await req.ErrorAsync(HttpStatusCode.BadRequest, "Invalid JSON payload");
         }
 
-        if (payload is null || string.IsNullOrWhiteSpace(payload.Level1) || string.IsNullOrWhiteSpace(payload.Level2) || string.IsNullOrWhiteSpace(payload.Level3))
+        if (payload is null)
         {
-            return await req.ErrorAsync(HttpStatusCode.BadRequest, "Level1-3 required");
+            return await req.ErrorAsync(HttpStatusCode.BadRequest, "Payload required");
         }
 
         var config = await configService.LoadDocumentConfigAsync(projectId, auth.UserId, req.FunctionContext.CancellationToken).ConfigureAwait(false);
+        var levelCount = Math.Clamp(config.LevelCount, 1, 6);
+        if (levelCount >= 1 && string.IsNullOrWhiteSpace(payload.Level1))
+        {
+            return await req.ErrorAsync(HttpStatusCode.BadRequest, "Level1 required");
+        }
+        if (levelCount >= 2 && string.IsNullOrWhiteSpace(payload.Level2))
+        {
+            return await req.ErrorAsync(HttpStatusCode.BadRequest, "Level2 required");
+        }
+        if (levelCount >= 3 && string.IsNullOrWhiteSpace(payload.Level3))
+        {
+            return await req.ErrorAsync(HttpStatusCode.BadRequest, "Level3 required");
+        }
         var key = new CodeSeriesKey
         {
             ProjectId = projectId,
             Level1 = payload.Level1.Trim(),
             Level2 = payload.Level2.Trim(),
             Level3 = payload.Level3.Trim(),
-            Level4 = string.IsNullOrWhiteSpace(payload.Level4) ? null : payload.Level4.Trim()
+            Level4 = string.IsNullOrWhiteSpace(payload.Level4) ? null : payload.Level4.Trim(),
+            Level5 = string.IsNullOrWhiteSpace(payload.Level5) ? null : payload.Level5.Trim(),
+            Level6 = string.IsNullOrWhiteSpace(payload.Level6) ? null : payload.Level6.Trim()
         };
 
         var allocated = await allocator.AllocateAsync(key, req.FunctionContext.CancellationToken).ConfigureAwait(false);
@@ -171,12 +186,25 @@ public sealed class DocumentsFunctions
             return await req.ErrorAsync(HttpStatusCode.BadRequest, "Invalid JSON payload");
         }
 
-        if (payload is null || string.IsNullOrWhiteSpace(payload.Level1) || string.IsNullOrWhiteSpace(payload.Level2) || string.IsNullOrWhiteSpace(payload.Level3))
+        if (payload is null)
         {
-            return await req.ErrorAsync(HttpStatusCode.BadRequest, "Level1-3 required");
+            return await req.ErrorAsync(HttpStatusCode.BadRequest, "Payload required");
         }
 
         var config = await configService.LoadDocumentConfigAsync(projectId, auth.UserId, req.FunctionContext.CancellationToken).ConfigureAwait(false);
+        var levelCount = Math.Clamp(config.LevelCount, 1, 6);
+        if (levelCount >= 1 && string.IsNullOrWhiteSpace(payload.Level1))
+        {
+            return await req.ErrorAsync(HttpStatusCode.BadRequest, "Level1 required");
+        }
+        if (levelCount >= 2 && string.IsNullOrWhiteSpace(payload.Level2))
+        {
+            return await req.ErrorAsync(HttpStatusCode.BadRequest, "Level2 required");
+        }
+        if (levelCount >= 3 && string.IsNullOrWhiteSpace(payload.Level3))
+        {
+            return await req.ErrorAsync(HttpStatusCode.BadRequest, "Level3 required");
+        }
 
         var key = new CodeSeriesKey
         {
@@ -184,7 +212,9 @@ public sealed class DocumentsFunctions
             Level1 = payload.Level1.Trim(),
             Level2 = payload.Level2.Trim(),
             Level3 = payload.Level3.Trim(),
-            Level4 = string.IsNullOrWhiteSpace(payload.Level4) ? null : payload.Level4.Trim()
+            Level4 = string.IsNullOrWhiteSpace(payload.Level4) ? null : payload.Level4.Trim(),
+            Level5 = string.IsNullOrWhiteSpace(payload.Level5) ? null : payload.Level5.Trim(),
+            Level6 = string.IsNullOrWhiteSpace(payload.Level6) ? null : payload.Level6.Trim()
         };
 
         var nextNumber = await allocator.PeekNextAsync(key, req.FunctionContext.CancellationToken).ConfigureAwait(false);
@@ -241,12 +271,17 @@ public sealed class DocumentsFunctions
         var sep = string.IsNullOrEmpty(config.Separator) ? "-" : config.Separator;
         var padding = config.PaddingLength <= 0 ? 3 : config.PaddingLength;
         var padded = d.Number.ToString().PadLeft(padding, '0');
-        if (string.IsNullOrWhiteSpace(d.Level4))
-        {
-            return $"{d.Level1}{sep}{d.Level2}{sep}{d.Level3}{sep}{padded}";
-        }
-        return $"{d.Level1}{sep}{d.Level2}{sep}{d.Level3}{sep}{d.Level4}{sep}{padded}";
+        var levelCount = Math.Clamp(config.LevelCount, 1, 6);
+        var parts = new List<string>();
+        if (levelCount >= 1) parts.Add(d.Level1);
+        if (levelCount >= 2) parts.Add(d.Level2);
+        if (levelCount >= 3) parts.Add(d.Level3);
+        if (levelCount >= 4 && !string.IsNullOrWhiteSpace(d.Level4)) parts.Add(d.Level4);
+        if (levelCount >= 5 && !string.IsNullOrWhiteSpace(d.Level5)) parts.Add(d.Level5);
+        if (levelCount >= 6 && !string.IsNullOrWhiteSpace(d.Level6)) parts.Add(d.Level6);
+        parts.Add(padded);
+        return string.Join(sep, parts);
     }
 }
 
-public sealed record CreateDocumentRequest(string Level1, string Level2, string Level3, string? Level4, string? FreeText, string? Extension, string? OriginalQuery);
+public sealed record CreateDocumentRequest(string Level1, string Level2, string Level3, string? Level4, string? Level5, string? Level6, string? FreeText, string? Extension, string? OriginalQuery);

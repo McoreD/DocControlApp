@@ -73,12 +73,23 @@ internal sealed class CodeSeriesKeyComparer : IEqualityComparer<CodeSeriesKey>
             && string.Equals(x.Level1, y.Level1, StringComparison.OrdinalIgnoreCase)
             && string.Equals(x.Level2, y.Level2, StringComparison.OrdinalIgnoreCase)
             && string.Equals(x.Level3, y.Level3, StringComparison.OrdinalIgnoreCase)
-            && string.Equals(x.Level4 ?? string.Empty, y.Level4 ?? string.Empty, StringComparison.OrdinalIgnoreCase);
+            && string.Equals(x.Level4 ?? string.Empty, y.Level4 ?? string.Empty, StringComparison.OrdinalIgnoreCase)
+            && string.Equals(x.Level5 ?? string.Empty, y.Level5 ?? string.Empty, StringComparison.OrdinalIgnoreCase)
+            && string.Equals(x.Level6 ?? string.Empty, y.Level6 ?? string.Empty, StringComparison.OrdinalIgnoreCase);
     }
 
     public int GetHashCode(CodeSeriesKey obj)
     {
         var l4 = obj.Level4 ?? string.Empty;
-        return HashCode.Combine(obj.ProjectId, obj.Level1.ToLowerInvariant(), obj.Level2.ToLowerInvariant(), obj.Level3.ToLowerInvariant(), l4.ToLowerInvariant());
+        var l5 = obj.Level5 ?? string.Empty;
+        var l6 = obj.Level6 ?? string.Empty;
+        return HashCode.Combine(
+            obj.ProjectId,
+            obj.Level1.ToLowerInvariant(),
+            obj.Level2.ToLowerInvariant(),
+            obj.Level3.ToLowerInvariant(),
+            l4.ToLowerInvariant(),
+            l5.ToLowerInvariant(),
+            l6.ToLowerInvariant());
     }
 }

@@ -112,7 +112,9 @@ public sealed class ImportsFunctions
                 Level1 = key.Level1,
                 Level2 = key.Level2,
                 Level3 = key.Level3,
-                Level4 = key.Level4
+                Level4 = key.Level4,
+                Level5 = key.Level5,
+                Level6 = key.Level6
             };
             var description = !string.IsNullOrWhiteSpace(entry.Description)
                 ? entry.Description
@@ -156,7 +158,16 @@ public sealed class ImportsFunctions
                 errors.Add($"{codeRaw}: {reason}");
                 continue;
             }
-            key = new CodeSeriesKey { ProjectId = projectId, Level1 = key.Level1, Level2 = key.Level2, Level3 = key.Level3, Level4 = key.Level4 };
+            key = new CodeSeriesKey
+            {
+                ProjectId = projectId,
+                Level1 = key.Level1,
+                Level2 = key.Level2,
+                Level3 = key.Level3,
+                Level4 = key.Level4,
+                Level5 = key.Level5,
+                Level6 = key.Level6
+            };
             var description = string.IsNullOrWhiteSpace(freeText) ? null : freeText;
             await codeSeriesRepository.UpsertAsync(key, description, number + 1, req.FunctionContext.CancellationToken);
             await documentRepository.UpsertImportedAsync(key, number, freeText, codeRaw, auth.UserId, now, req.FunctionContext.CancellationToken);
@@ -218,7 +229,16 @@ public sealed class ImportsFunctions
                 errors.Add($"{entry.Code}: {reason}");
                 continue;
             }
-            key = new CodeSeriesKey { ProjectId = projectId, Level1 = key.Level1, Level2 = key.Level2, Level3 = key.Level3, Level4 = key.Level4 };
+            key = new CodeSeriesKey
+            {
+                ProjectId = projectId,
+                Level1 = key.Level1,
+                Level2 = key.Level2,
+                Level3 = key.Level3,
+                Level4 = key.Level4,
+                Level5 = key.Level5,
+                Level6 = key.Level6
+            };
             var description = !string.IsNullOrWhiteSpace(entry.Description)
                 ? entry.Description
                 : (!string.IsNullOrWhiteSpace(entry.FreeText) ? entry.FreeText : null);
@@ -272,26 +292,29 @@ public sealed class ImportsFunctions
 
     private static bool TryParseCode(string code, DocumentConfig config, out CodeSeriesKey key, out int number, out string reason)
     {
-        key = new CodeSeriesKey { ProjectId = 0, Level1 = string.Empty, Level2 = string.Empty, Level3 = string.Empty, Level4 = null };
+        key = new CodeSeriesKey { ProjectId = 0, Level1 = string.Empty, Level2 = string.Empty, Level3 = string.Empty, Level4 = null, Level5 = null, Level6 = null };
         number = 0;
         reason = string.Empty;
 
         var parts = code.Split(config.Separator, StringSplitOptions.RemoveEmptyEntries);
-        if (parts.Length == 5)
+        var levelCount = Math.Clamp(config.LevelCount, 1, 6);
+        if (parts.Length < levelCount + 1)
         {
-            if (!int.TryParse(parts[4], out number)) { reason = "Number not numeric"; return false; }
-            key = new CodeSeriesKey { ProjectId = 0, Level1 = parts[0], Level2 = parts[1], Level3 = parts[2], Level4 = parts[3] };
-            return true;
+            reason = $"Expected {levelCount} level(s) and number";
+            return false;
         }
-        if (parts.Length == 4)
+        if (!int.TryParse(parts[levelCount], out number)) { reason = "Number not numeric"; return false; }
+        key = new CodeSeriesKey
         {
-            if (!int.TryParse(parts[3], out number)) { reason = "Number not numeric"; return false; }
-            key = new CodeSeriesKey { ProjectId = 0, Level1 = parts[0], Level2 = parts[1], Level3 = parts[2], Level4 = null };
-            return true;
-        }
-
-        reason = "Expected Level1-3 or Level1-4 and number";
-        return false;
+            ProjectId = 0,
+            Level1 = parts.ElementAtOrDefault(0) ?? string.Empty,
+            Level2 = parts.ElementAtOrDefault(1) ?? string.Empty,
+            Level3 = parts.ElementAtOrDefault(2) ?? string.Empty,
+            Level4 = parts.ElementAtOrDefault(3),
+            Level5 = parts.ElementAtOrDefault(4),
+            Level6 = parts.ElementAtOrDefault(5)
+        };
+        return true;
     }
 
     private static string Unquote(string value)

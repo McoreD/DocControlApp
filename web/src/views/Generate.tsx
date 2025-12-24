@@ -10,6 +10,9 @@ export default function Generate() {
   const [level1, setLevel1] = useState('');
   const [level2, setLevel2] = useState('');
   const [level3, setLevel3] = useState('');
+  const [level4, setLevel4] = useState('');
+  const [level5, setLevel5] = useState('');
+  const [level6, setLevel6] = useState('');
   const [freeText, setFreeText] = useState('');
   const [output, setOutput] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -27,6 +30,9 @@ export default function Generate() {
       setLevel1(res.level1 ?? '');
       setLevel2(res.level2 ?? '');
       setLevel3(res.level3 ?? '');
+      setLevel4(res.level4 ?? '');
+      setLevel5(res.level5 ?? '');
+      setLevel6(res.level6 ?? '');
       setFreeText(res.freeText ?? '');
     } catch (err: any) {
       setRecommendError(err.message ?? 'AI recommend failed');
@@ -44,6 +50,9 @@ export default function Generate() {
         level1,
         level2,
         level3,
+        level4,
+        level5,
+        level6,
         freeText,
         extension: undefined,
       });
@@ -64,6 +73,9 @@ export default function Generate() {
         level1,
         level2,
         level3,
+        level4,
+        level5,
+        level6,
         freeText,
         extension: undefined,
       });
@@ -99,6 +111,8 @@ export default function Generate() {
             <div><strong>Level2:</strong> {recommendResult.level2}</div>
             <div><strong>Level3:</strong> {recommendResult.level3}</div>
             {recommendResult.level4 && <div><strong>Level4:</strong> {recommendResult.level4}</div>}
+            {recommendResult.level5 && <div><strong>Level5:</strong> {recommendResult.level5}</div>}
+            {recommendResult.level6 && <div><strong>Level6:</strong> {recommendResult.level6}</div>}
             <div><strong>Free text:</strong> {recommendResult.freeText}</div>
             {recommendResult.reason && <div className="muted">Reason: {recommendResult.reason}</div>}
           </div>
@@ -114,6 +128,12 @@ export default function Generate() {
           <input value={level2} onChange={(e) => setLevel2(e.target.value)} placeholder="GOV" />
           <label>Level3</label>
           <input value={level3} onChange={(e) => setLevel3(e.target.value)} placeholder="REG" />
+          <label>Level4 (optional)</label>
+          <input value={level4} onChange={(e) => setLevel4(e.target.value)} placeholder="SUB" />
+          <label>Level5 (optional)</label>
+          <input value={level5} onChange={(e) => setLevel5(e.target.value)} placeholder="TYPE" />
+          <label>Level6 (optional)</label>
+          <input value={level6} onChange={(e) => setLevel6(e.target.value)} placeholder="ITEM" />
           <label>Free text</label>
           <input value={freeText} onChange={(e) => setFreeText(e.target.value)} placeholder="Delpach DocControl" />
           <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>

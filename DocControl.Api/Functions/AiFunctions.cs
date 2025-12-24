@@ -103,7 +103,17 @@ public sealed class AiFunctions
         {
             int level;
             string code;
-            if (!string.IsNullOrWhiteSpace(c.Key.Level4))
+            if (!string.IsNullOrWhiteSpace(c.Key.Level6))
+            {
+                level = 6;
+                code = c.Key.Level6!;
+            }
+            else if (!string.IsNullOrWhiteSpace(c.Key.Level5))
+            {
+                level = 5;
+                code = c.Key.Level5!;
+            }
+            else if (!string.IsNullOrWhiteSpace(c.Key.Level4))
             {
                 level = 4;
                 code = c.Key.Level4!;

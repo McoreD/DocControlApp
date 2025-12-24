@@ -35,33 +35,41 @@ public sealed class FileNameParser
         }
 
         var parts = name.Split(config.Separator, StringSplitOptions.RemoveEmptyEntries);
-        if (config.EnableLevel4)
+        var levelCount = Math.Clamp(config.LevelCount, 1, 6);
+        if (parts.Length < levelCount + 1)
         {
-            if (parts.Length < 5) { reason = "Expected Level1-4 and number"; return false; }
-            if (parts.Length > 6) { reason = "Too many parts"; return false; }
-            var level1 = parts[0];
-            var level2 = parts[1];
-            var level3 = parts[2];
-            var level4 = parts[3];
-            if (!AllCodesValid(level1, level2, level3, level4)) { reason = "Codes must be alphanumeric (A-Z,0-9,_,-)"; return false; }
-            if (!int.TryParse(parts[4], out var num)) { reason = "Number not numeric"; return false; }
-            var freeText = parts.Length > 5 ? string.Join(config.Separator, parts.Skip(5)) : string.Empty;
-            parsed = new ParsedFileName(new CodeSeriesKey { ProjectId = projectId, Level1 = level1, Level2 = level2, Level3 = level3, Level4 = level4 }, num, freeText, ext);
-            return true;
+            reason = $"Expected {levelCount} level(s) and number";
+            return false;
         }
-        else
+
+        var levels = parts.Take(levelCount).ToArray();
+        if (!AllCodesValid(levels))
         {
-            if (parts.Length < 4) { reason = "Expected Level1-3 and number"; return false; }
-            if (parts.Length > 5) { reason = "Too many parts"; return false; }
-            var level1 = parts[0];
-            var level2 = parts[1];
-            var level3 = parts[2];
-            if (!AllCodesValid(level1, level2, level3)) { reason = "Codes must be alphanumeric (A-Z,0-9,_,-)"; return false; }
-            if (!int.TryParse(parts[3], out var num)) { reason = "Number not numeric"; return false; }
-            var freeText = parts.Length > 4 ? string.Join(config.Separator, parts.Skip(4)) : string.Empty;
-            parsed = new ParsedFileName(new CodeSeriesKey { ProjectId = projectId, Level1 = level1, Level2 = level2, Level3 = level3 }, num, freeText, ext);
-            return true;
+            reason = "Codes must be alphanumeric (A-Z,0-9,_,-)";
+            return false;
         }
+
+        if (!int.TryParse(parts[levelCount], out var num))
+        {
+            reason = "Number not numeric";
+            return false;
+        }
+
+        var freeText = parts.Length > levelCount + 1
+            ? string.Join(config.Separator, parts.Skip(levelCount + 1))
+            : string.Empty;
+
+        parsed = new ParsedFileName(new CodeSeriesKey
+        {
+            ProjectId = projectId,
+            Level1 = levels.ElementAtOrDefault(0) ?? string.Empty,
+            Level2 = levels.ElementAtOrDefault(1) ?? string.Empty,
+            Level3 = levels.ElementAtOrDefault(2) ?? string.Empty,
+            Level4 = levels.ElementAtOrDefault(3),
+            Level5 = levels.ElementAtOrDefault(4),
+            Level6 = levels.ElementAtOrDefault(5)
+        }, num, freeText, ext);
+        return true;
     }
 
     private static bool AllCodesValid(params string[] codes) => codes.All(c => CodeRegex.IsMatch(c));

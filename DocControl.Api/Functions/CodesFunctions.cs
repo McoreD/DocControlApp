@@ -71,9 +71,9 @@ public sealed class CodesFunctions
             return await req.ErrorAsync(HttpStatusCode.BadRequest, "Invalid JSON payload");
         }
 
-        if (payload is null || string.IsNullOrWhiteSpace(payload.Level1) || string.IsNullOrWhiteSpace(payload.Level2) || string.IsNullOrWhiteSpace(payload.Level3))
+        if (payload is null || string.IsNullOrWhiteSpace(payload.Level1))
         {
-            return await req.ErrorAsync(HttpStatusCode.BadRequest, "Level1-3 required");
+            return await req.ErrorAsync(HttpStatusCode.BadRequest, "Level1 required");
         }
 
         var key = new CodeSeriesKey
@@ -82,7 +82,9 @@ public sealed class CodesFunctions
             Level1 = payload.Level1.Trim(),
             Level2 = payload.Level2.Trim(),
             Level3 = payload.Level3.Trim(),
-            Level4 = string.IsNullOrWhiteSpace(payload.Level4) ? null : payload.Level4.Trim()
+            Level4 = string.IsNullOrWhiteSpace(payload.Level4) ? null : payload.Level4.Trim(),
+            Level5 = string.IsNullOrWhiteSpace(payload.Level5) ? null : payload.Level5.Trim(),
+            Level6 = string.IsNullOrWhiteSpace(payload.Level6) ? null : payload.Level6.Trim()
         };
         var id = await codeSeriesRepository.UpsertAsync(key, payload.Description, payload.NextNumber, req.FunctionContext.CancellationToken);
         return await req.ToJsonAsync(new { id }, HttpStatusCode.OK, jsonOptions);
@@ -137,6 +139,8 @@ public sealed class CodesFunctions
             c.Key.Level2,
             c.Key.Level3,
             c.Key.Level4,
+            c.Key.Level5,
+            c.Key.Level6,
             c.Description,
             c.NextNumber
         });
@@ -169,14 +173,16 @@ public sealed class CodesFunctions
         var imported = 0;
         foreach (var p in payload)
         {
-            if (string.IsNullOrWhiteSpace(p.Level1) || string.IsNullOrWhiteSpace(p.Level2) || string.IsNullOrWhiteSpace(p.Level3)) continue;
+            if (string.IsNullOrWhiteSpace(p.Level1)) continue;
             var key = new CodeSeriesKey
             {
                 ProjectId = projectId,
                 Level1 = p.Level1.Trim(),
                 Level2 = p.Level2.Trim(),
                 Level3 = p.Level3.Trim(),
-                Level4 = string.IsNullOrWhiteSpace(p.Level4) ? null : p.Level4.Trim()
+                Level4 = string.IsNullOrWhiteSpace(p.Level4) ? null : p.Level4.Trim(),
+                Level5 = string.IsNullOrWhiteSpace(p.Level5) ? null : p.Level5.Trim(),
+                Level6 = string.IsNullOrWhiteSpace(p.Level6) ? null : p.Level6.Trim()
             };
             await codeSeriesRepository.UpsertAsync(key, p.Description, p.NextNumber, req.FunctionContext.CancellationToken);
             imported++;
@@ -193,4 +199,4 @@ public sealed class CodesFunctions
     }
 }
 
-public sealed record UpsertCodeRequest(string Level1, string Level2, string Level3, string? Level4, string? Description, int? NextNumber);
+public sealed record UpsertCodeRequest(string Level1, string Level2, string Level3, string? Level4, string? Level5, string? Level6, string? Description, int? NextNumber);

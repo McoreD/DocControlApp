@@ -88,7 +88,40 @@ public sealed class ProjectsFunctions
 
         var separator = string.IsNullOrWhiteSpace(payload.Separator) ? "-" : payload.Separator.Trim();
         var padding = payload.PaddingLength <= 0 ? 3 : payload.PaddingLength;
-        var projectId = await projectRepository.CreateAsync(payload.Name.Trim(), payload.Description ?? string.Empty, separator, padding, auth.UserId, req.FunctionContext.CancellationToken);
+        var levelCount = payload.LevelCount is < 1 or > 6 ? 3 : payload.LevelCount;
+        var level1Label = string.IsNullOrWhiteSpace(payload.Level1Label) ? "Level1" : payload.Level1Label.Trim();
+        var level2Label = string.IsNullOrWhiteSpace(payload.Level2Label) ? "Level2" : payload.Level2Label.Trim();
+        var level3Label = string.IsNullOrWhiteSpace(payload.Level3Label) ? "Level3" : payload.Level3Label.Trim();
+        var level4Label = string.IsNullOrWhiteSpace(payload.Level4Label) ? "Level4" : payload.Level4Label.Trim();
+        var level5Label = string.IsNullOrWhiteSpace(payload.Level5Label) ? "Level5" : payload.Level5Label.Trim();
+        var level6Label = string.IsNullOrWhiteSpace(payload.Level6Label) ? "Level6" : payload.Level6Label.Trim();
+        var level1Length = payload.Level1Length is < 1 or > 4 ? 3 : payload.Level1Length;
+        var level2Length = payload.Level2Length is < 1 or > 4 ? 3 : payload.Level2Length;
+        var level3Length = payload.Level3Length is < 1 or > 4 ? 3 : payload.Level3Length;
+        var level4Length = payload.Level4Length is < 1 or > 4 ? 3 : payload.Level4Length;
+        var level5Length = payload.Level5Length is < 1 or > 4 ? 3 : payload.Level5Length;
+        var level6Length = payload.Level6Length is < 1 or > 4 ? 3 : payload.Level6Length;
+
+        var projectId = await projectRepository.CreateAsync(
+            payload.Name.Trim(),
+            payload.Description ?? string.Empty,
+            separator,
+            padding,
+            levelCount,
+            level1Label,
+            level2Label,
+            level3Label,
+            level4Label,
+            level5Label,
+            level6Label,
+            level1Length,
+            level2Length,
+            level3Length,
+            level4Length,
+            level5Length,
+            level6Length,
+            auth.UserId,
+            req.FunctionContext.CancellationToken);
         var created = new ProjectRecord
         {
             Id = projectId,
@@ -96,6 +129,19 @@ public sealed class ProjectsFunctions
             Description = payload.Description ?? string.Empty,
             Separator = separator,
             PaddingLength = padding,
+            LevelCount = levelCount,
+            Level1Label = level1Label,
+            Level2Label = level2Label,
+            Level3Label = level3Label,
+            Level4Label = level4Label,
+            Level5Label = level5Label,
+            Level6Label = level6Label,
+            Level1Length = level1Length,
+            Level2Length = level2Length,
+            Level3Length = level3Length,
+            Level4Length = level4Length,
+            Level5Length = level5Length,
+            Level6Length = level6Length,
             CreatedByUserId = auth.UserId,
             CreatedAtUtc = DateTime.UtcNow,
             IsArchived = false,
@@ -122,5 +168,22 @@ public sealed class ProjectsFunctions
         return await req.ToJsonAsync(new { projectId }, HttpStatusCode.OK, jsonOptions);
     }
 
-    private sealed record CreateProjectRequest(string Name, string? Description, string? Separator, int PaddingLength);
+    private sealed record CreateProjectRequest(
+        string Name,
+        string? Description,
+        string? Separator,
+        int PaddingLength,
+        int LevelCount,
+        string? Level1Label,
+        string? Level2Label,
+        string? Level3Label,
+        string? Level4Label,
+        string? Level5Label,
+        string? Level6Label,
+        int Level1Length,
+        int Level2Length,
+        int Level3Length,
+        int Level4Length,
+        int Level5Length,
+        int Level6Length);
 }

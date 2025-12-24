@@ -9,5 +9,7 @@ public sealed class NlqResponse
     public string Level2 { get; init; } = string.Empty;
     public string Level3 { get; init; } = string.Empty;
     public string? Level4 { get; init; }
+    public string? Level5 { get; init; }
+    public string? Level6 { get; init; }
     public string FreeText { get; init; } = string.Empty;
 }

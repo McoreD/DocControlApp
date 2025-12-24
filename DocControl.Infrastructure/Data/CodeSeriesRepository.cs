@@ -18,9 +18,9 @@ public sealed class CodeSeriesRepository
         await conn.OpenAsync(cancellationToken).ConfigureAwait(false);
 
         const string sql = @"
-            INSERT INTO CodeSeries (ProjectId, Level1, Level2, Level3, Level4, Description, NextNumber)
-            VALUES (@ProjectId, @Level1, @Level2, @Level3, @Level4, @Description, COALESCE(@NextNumber, 1))
-            ON CONFLICT(ProjectId, Level1, Level2, Level3, Level4)
+            INSERT INTO CodeSeries (ProjectId, Level1, Level2, Level3, Level4, Level5, Level6, Description, NextNumber)
+            VALUES (@ProjectId, @Level1, @Level2, @Level3, @Level4, @Level5, @Level6, @Description, COALESCE(@NextNumber, 1))
+            ON CONFLICT(ProjectId, Level1, Level2, Level3, Level4, Level5, Level6)
             DO UPDATE SET
                 Description = CASE WHEN EXCLUDED.Description IS NULL OR EXCLUDED.Description = '' THEN CodeSeries.Description ELSE EXCLUDED.Description END,
                 NextNumber = CASE
@@ -36,6 +36,8 @@ public sealed class CodeSeriesRepository
         cmd.Parameters.AddWithValue("@Level2", key.Level2);
         cmd.Parameters.AddWithValue("@Level3", key.Level3);
         cmd.Parameters.AddWithValue("@Level4", (object?)key.Level4 ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@Level5", (object?)key.Level5 ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@Level6", (object?)key.Level6 ?? DBNull.Value);
         cmd.Parameters.AddWithValue("@Description", (object?)description ?? DBNull.Value);
         cmd.Parameters.AddWithValue("@NextNumber", (object?)nextNumber ?? DBNull.Value);
 
@@ -52,9 +54,9 @@ public sealed class CodeSeriesRepository
         foreach (var (key, description, max) in seriesMax)
         {
             const string upsert = @"
-                INSERT INTO CodeSeries (ProjectId, Level1, Level2, Level3, Level4, Description, NextNumber)
-                VALUES (@ProjectId, @Level1, @Level2, @Level3, @Level4, @Description, @NextNumber)
-                ON CONFLICT(ProjectId, Level1, Level2, Level3, Level4)
+                INSERT INTO CodeSeries (ProjectId, Level1, Level2, Level3, Level4, Level5, Level6, Description, NextNumber)
+                VALUES (@ProjectId, @Level1, @Level2, @Level3, @Level4, @Level5, @Level6, @Description, @NextNumber)
+                ON CONFLICT(ProjectId, Level1, Level2, Level3, Level4, Level5, Level6)
                 DO UPDATE SET 
                     Description = CASE WHEN EXCLUDED.Description IS NULL OR EXCLUDED.Description = '' THEN CodeSeries.Description ELSE EXCLUDED.Description END,
                     NextNumber = CASE WHEN EXCLUDED.NextNumber > CodeSeries.NextNumber THEN EXCLUDED.NextNumber ELSE CodeSeries.NextNumber END;
@@ -65,6 +67,8 @@ public sealed class CodeSeriesRepository
             cmd.Parameters.AddWithValue("@Level2", key.Level2);
             cmd.Parameters.AddWithValue("@Level3", key.Level3);
             cmd.Parameters.AddWithValue("@Level4", (object?)key.Level4 ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("@Level5", (object?)key.Level5 ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("@Level6", (object?)key.Level6 ?? DBNull.Value);
             cmd.Parameters.AddWithValue("@Description", (object?)description ?? DBNull.Value);
             cmd.Parameters.AddWithValue("@NextNumber", max + 1);
             await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
@@ -81,7 +85,7 @@ public sealed class CodeSeriesRepository
         await using var conn = factory.Create();
         await conn.OpenAsync(cancellationToken).ConfigureAwait(false);
 
-        const string sql = @"SELECT Id, ProjectId, Level1, Level2, Level3, Level4, Description, NextNumber FROM CodeSeries WHERE ProjectId = @ProjectId ORDER BY Level1, Level2, Level3, Level4;";
+        const string sql = @"SELECT Id, ProjectId, Level1, Level2, Level3, Level4, Level5, Level6, Description, NextNumber FROM CodeSeries WHERE ProjectId = @ProjectId ORDER BY Level1, Level2, Level3, Level4, Level5, Level6;";
         await using var cmd = new NpgsqlCommand(sql, conn);
         cmd.Parameters.AddWithValue("@ProjectId", projectId);
 
@@ -94,20 +98,22 @@ public sealed class CodeSeriesRepository
                 Level1 = reader.GetString(2),
                 Level2 = reader.GetString(3),
                 Level3 = reader.GetString(4),
-                Level4 = reader.IsDBNull(5) ? null : reader.GetString(5)
+                Level4 = reader.IsDBNull(5) ? null : reader.GetString(5),
+                Level5 = reader.IsDBNull(6) ? null : reader.GetString(6),
+                Level6 = reader.IsDBNull(7) ? null : reader.GetString(7)
             };
             list.Add(new CodeSeriesRecord
             {
                 Id = reader.GetInt64(0),
                 Key = key,
-                Description = reader.IsDBNull(6) ? null : reader.GetString(6),
-                NextNumber = reader.GetInt32(7)
+                Description = reader.IsDBNull(8) ? null : reader.GetString(8),
+                NextNumber = reader.GetInt32(9)
             });
         }
 
         foreach (var item in list)
         {
-            var dedupKey = $"{item.Key.Level1}|{item.Key.Level2}|{item.Key.Level3}|{item.Key.Level4 ?? string.Empty}";
+            var dedupKey = $"{item.Key.Level1}|{item.Key.Level2}|{item.Key.Level3}|{item.Key.Level4 ?? string.Empty}|{item.Key.Level5 ?? string.Empty}|{item.Key.Level6 ?? string.Empty}";
             if (!dedup.TryGetValue(dedupKey, out var existing))
             {
                 dedup[dedupKey] = item;

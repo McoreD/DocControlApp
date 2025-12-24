@@ -29,14 +29,25 @@ public sealed class ConfigService
         var project = await projectRepository.GetAsync(projectId, userId, cancellationToken).ConfigureAwait(false);
         if (project is null)
         {
-            return new DocumentConfig { Separator = "-", PaddingLength = 3, LevelCount = 4, EnableLevel4 = true };
+            return new DocumentConfig();
         }
         return new DocumentConfig
         {
             Separator = string.IsNullOrWhiteSpace(project.Separator) ? "-" : project.Separator,
             PaddingLength = project.PaddingLength <= 0 ? 3 : project.PaddingLength,
-            LevelCount = 4,
-            EnableLevel4 = true
+            LevelCount = project.LevelCount is < 1 or > 6 ? 3 : project.LevelCount,
+            Level1Name = string.IsNullOrWhiteSpace(project.Level1Label) ? "Level1" : project.Level1Label,
+            Level2Name = string.IsNullOrWhiteSpace(project.Level2Label) ? "Level2" : project.Level2Label,
+            Level3Name = string.IsNullOrWhiteSpace(project.Level3Label) ? "Level3" : project.Level3Label,
+            Level4Name = string.IsNullOrWhiteSpace(project.Level4Label) ? "Level4" : project.Level4Label,
+            Level5Name = string.IsNullOrWhiteSpace(project.Level5Label) ? "Level5" : project.Level5Label,
+            Level6Name = string.IsNullOrWhiteSpace(project.Level6Label) ? "Level6" : project.Level6Label,
+            Level1Length = project.Level1Length is < 1 or > 4 ? 3 : project.Level1Length,
+            Level2Length = project.Level2Length is < 1 or > 4 ? 3 : project.Level2Length,
+            Level3Length = project.Level3Length is < 1 or > 4 ? 3 : project.Level3Length,
+            Level4Length = project.Level4Length is < 1 or > 4 ? 3 : project.Level4Length,
+            Level5Length = project.Level5Length is < 1 or > 4 ? 3 : project.Level5Length,
+            Level6Length = project.Level6Length is < 1 or > 4 ? 3 : project.Level6Length
         };
     }
 

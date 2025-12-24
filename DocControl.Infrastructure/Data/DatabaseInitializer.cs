@@ -45,6 +45,19 @@ public sealed class DatabaseInitializer
             Description TEXT NOT NULL,
             Separator TEXT NOT NULL DEFAULT '-',
             PaddingLength INTEGER NOT NULL DEFAULT 3,
+            LevelCount INTEGER NOT NULL DEFAULT 3,
+            Level1Label TEXT NOT NULL DEFAULT 'Level1',
+            Level2Label TEXT NOT NULL DEFAULT 'Level2',
+            Level3Label TEXT NOT NULL DEFAULT 'Level3',
+            Level4Label TEXT NOT NULL DEFAULT 'Level4',
+            Level5Label TEXT NOT NULL DEFAULT 'Level5',
+            Level6Label TEXT NOT NULL DEFAULT 'Level6',
+            Level1Length INTEGER NOT NULL DEFAULT 3,
+            Level2Length INTEGER NOT NULL DEFAULT 3,
+            Level3Length INTEGER NOT NULL DEFAULT 3,
+            Level4Length INTEGER NOT NULL DEFAULT 3,
+            Level5Length INTEGER NOT NULL DEFAULT 3,
+            Level6Length INTEGER NOT NULL DEFAULT 3,
             CreatedByUserId BIGINT NOT NULL REFERENCES Users(Id),
             CreatedAtUtc TIMESTAMPTZ NOT NULL DEFAULT now(),
             IsArchived BOOLEAN NOT NULL DEFAULT FALSE
@@ -85,7 +98,29 @@ public sealed class DatabaseInitializer
         ALTER TABLE Users ADD COLUMN IF NOT EXISTS KeySalt TEXT;
         ALTER TABLE Projects ADD COLUMN IF NOT EXISTS Separator TEXT NOT NULL DEFAULT '-';
         ALTER TABLE Projects ADD COLUMN IF NOT EXISTS PaddingLength INTEGER NOT NULL DEFAULT 3;
+        ALTER TABLE Projects ADD COLUMN IF NOT EXISTS LevelCount INTEGER NOT NULL DEFAULT 3;
+        ALTER TABLE Projects ADD COLUMN IF NOT EXISTS Level1Label TEXT NOT NULL DEFAULT 'Level1';
+        ALTER TABLE Projects ADD COLUMN IF NOT EXISTS Level2Label TEXT NOT NULL DEFAULT 'Level2';
+        ALTER TABLE Projects ADD COLUMN IF NOT EXISTS Level3Label TEXT NOT NULL DEFAULT 'Level3';
+        ALTER TABLE Projects ADD COLUMN IF NOT EXISTS Level4Label TEXT NOT NULL DEFAULT 'Level4';
+        ALTER TABLE Projects ADD COLUMN IF NOT EXISTS Level5Label TEXT NOT NULL DEFAULT 'Level5';
+        ALTER TABLE Projects ADD COLUMN IF NOT EXISTS Level6Label TEXT NOT NULL DEFAULT 'Level6';
+        ALTER TABLE Projects ADD COLUMN IF NOT EXISTS Level1Length INTEGER NOT NULL DEFAULT 3;
+        ALTER TABLE Projects ADD COLUMN IF NOT EXISTS Level2Length INTEGER NOT NULL DEFAULT 3;
+        ALTER TABLE Projects ADD COLUMN IF NOT EXISTS Level3Length INTEGER NOT NULL DEFAULT 3;
+        ALTER TABLE Projects ADD COLUMN IF NOT EXISTS Level4Length INTEGER NOT NULL DEFAULT 3;
+        ALTER TABLE Projects ADD COLUMN IF NOT EXISTS Level5Length INTEGER NOT NULL DEFAULT 3;
+        ALTER TABLE Projects ADD COLUMN IF NOT EXISTS Level6Length INTEGER NOT NULL DEFAULT 3;
         ALTER TABLE ProjectMembers ADD COLUMN IF NOT EXISTS IsDefault BOOLEAN NOT NULL DEFAULT FALSE;
+        ALTER TABLE CodeSeries ADD COLUMN IF NOT EXISTS Level5 TEXT;
+        ALTER TABLE CodeSeries ADD COLUMN IF NOT EXISTS Level6 TEXT;
+        ALTER TABLE Documents ADD COLUMN IF NOT EXISTS Level5 TEXT;
+        ALTER TABLE Documents ADD COLUMN IF NOT EXISTS Level6 TEXT;
+        ALTER TABLE CodeSeries DROP CONSTRAINT IF EXISTS codeseries_projectid_level1_level2_level3_level4_key;
+        ALTER TABLE Documents DROP CONSTRAINT IF EXISTS documents_projectid_level1_level2_level3_level4_number_key;
+
+        CREATE UNIQUE INDEX IF NOT EXISTS IX_CodeSeries_Unique ON CodeSeries(ProjectId, Level1, Level2, Level3, Level4, Level5, Level6);
+        CREATE UNIQUE INDEX IF NOT EXISTS IX_Documents_Unique ON Documents(ProjectId, Level1, Level2, Level3, Level4, Level5, Level6, Number);
 
         CREATE UNIQUE INDEX IF NOT EXISTS IX_ProjectMembers_DefaultProject
             ON ProjectMembers(UserId)
@@ -107,9 +142,11 @@ public sealed class DatabaseInitializer
             Level2 TEXT NOT NULL,
             Level3 TEXT NOT NULL,
             Level4 TEXT,
+            Level5 TEXT,
+            Level6 TEXT,
             Description TEXT,
             NextNumber INTEGER NOT NULL DEFAULT 1,
-            UNIQUE(ProjectId, Level1, Level2, Level3, Level4)
+            UNIQUE(ProjectId, Level1, Level2, Level3, Level4, Level5, Level6)
         );
 
         CREATE TABLE IF NOT EXISTS Documents (
@@ -119,6 +156,8 @@ public sealed class DatabaseInitializer
             Level2 TEXT NOT NULL,
             Level3 TEXT NOT NULL,
             Level4 TEXT,
+            Level5 TEXT,
+            Level6 TEXT,
             Number INTEGER NOT NULL,
             FreeText TEXT,
             FileName TEXT NOT NULL,
@@ -126,7 +165,7 @@ public sealed class DatabaseInitializer
             CreatedAtUtc TIMESTAMPTZ NOT NULL DEFAULT now(),
             OriginalQuery TEXT,
             CodeSeriesId BIGINT NOT NULL REFERENCES CodeSeries(Id),
-            UNIQUE(ProjectId, Level1, Level2, Level3, Level4, Number)
+            UNIQUE(ProjectId, Level1, Level2, Level3, Level4, Level5, Level6, Number)
         );
 
         CREATE TABLE IF NOT EXISTS Audit (
@@ -140,7 +179,7 @@ public sealed class DatabaseInitializer
         );
 
         CREATE INDEX IF NOT EXISTS IX_Documents_ProjectId ON Documents(ProjectId);
-        CREATE INDEX IF NOT EXISTS IX_Documents_Search ON Documents(ProjectId, Level1, Level2, Level3, Level4, Number);
+        CREATE INDEX IF NOT EXISTS IX_Documents_Search ON Documents(ProjectId, Level1, Level2, Level3, Level4, Level5, Level6, Number);
         CREATE INDEX IF NOT EXISTS IX_Audit_ProjectId ON Audit(ProjectId, CreatedAtUtc DESC);
         ";
 

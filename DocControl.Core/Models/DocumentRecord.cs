@@ -8,6 +8,8 @@ public sealed class DocumentRecord
     public string Level2 { get; set; } = string.Empty;
     public string Level3 { get; set; } = string.Empty;
     public string? Level4 { get; set; }
+    public string? Level5 { get; set; }
+    public string? Level6 { get; set; }
     public int Number { get; set; }
     public string? FreeText { get; set; }
     public string FileName { get; set; } = string.Empty;

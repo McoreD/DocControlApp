@@ -16,6 +16,9 @@ export default function Projects() {
   const [description, setDescription] = useState('');
   const [separator, setSeparator] = useState('-');
   const [paddingLength, setPaddingLength] = useState(3);
+  const [levelCount, setLevelCount] = useState(3);
+  const [levelLabels, setLevelLabels] = useState<string[]>(['Level1', 'Level2', 'Level3', 'Level4', 'Level5', 'Level6']);
+  const [levelLengths, setLevelLengths] = useState<number[]>([3, 3, 3, 3, 3, 3]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [inviteProjectId, setInviteProjectId] = useState<number | null>(null);
@@ -51,11 +54,22 @@ export default function Projects() {
     setLoading(true);
     setError(null);
     try {
-      await ProjectsApi.create(name.trim(), description.trim(), separator.trim() || '-', paddingLength);
+      await ProjectsApi.create(
+        name.trim(),
+        description.trim(),
+        separator.trim() || '-',
+        paddingLength,
+        levelCount,
+        levelLabels,
+        levelLengths,
+      );
       setName('');
       setDescription('');
       setSeparator('-');
       setPaddingLength(3);
+      setLevelCount(3);
+      setLevelLabels(['Level1', 'Level2', 'Level3', 'Level4', 'Level5', 'Level6']);
+      setLevelLengths([3, 3, 3, 3, 3, 3]);
       await load();
     } catch (err: any) {
       setError(err.message ?? 'Failed to create project');
@@ -156,6 +170,42 @@ export default function Projects() {
               value={paddingLength}
               onChange={(e) => setPaddingLength(Number(e.target.value))}
             />
+            <label>Number of levels</label>
+            <select value={levelCount} onChange={(e) => setLevelCount(Number(e.target.value))}>
+              {[1, 2, 3, 4, 5, 6].map((count) => (
+                <option key={count} value={count}>{count}</option>
+              ))}
+            </select>
+            {Array.from({ length: levelCount }).map((_, index) => (
+              <div key={index} className="row" style={{ gap: 8 }}>
+                <div style={{ flex: 2 }}>
+                  <label>{`Level ${index + 1} label`}</label>
+                  <input
+                    value={levelLabels[index] ?? ''}
+                    onChange={(e) => {
+                      const next = [...levelLabels];
+                      next[index] = e.target.value;
+                      setLevelLabels(next);
+                    }}
+                    placeholder={`Level${index + 1}`}
+                  />
+                </div>
+                <div style={{ width: 140 }}>
+                  <label>{`Length`}</label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={4}
+                    value={levelLengths[index] ?? 3}
+                    onChange={(e) => {
+                      const next = [...levelLengths];
+                      next[index] = Number(e.target.value);
+                      setLevelLengths(next);
+                    }}
+                  />
+                </div>
+              </div>
+            ))}
             <button onClick={create} disabled={loading}>
               {loading ? 'Working...' : 'Create project'}
             </button>

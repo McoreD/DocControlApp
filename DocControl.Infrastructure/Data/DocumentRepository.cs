@@ -18,8 +18,8 @@ public sealed class DocumentRepository
         await conn.OpenAsync(cancellationToken).ConfigureAwait(false);
 
         const string sql = @"
-            INSERT INTO Documents (ProjectId, Level1, Level2, Level3, Level4, Number, FreeText, FileName, CreatedByUserId, CreatedAtUtc, OriginalQuery, CodeSeriesId)
-            VALUES (@ProjectId, @Level1, @Level2, @Level3, @Level4, @Number, @FreeText, @FileName, @CreatedByUserId, @CreatedAtUtc, @OriginalQuery, @CodeSeriesId)
+            INSERT INTO Documents (ProjectId, Level1, Level2, Level3, Level4, Level5, Level6, Number, FreeText, FileName, CreatedByUserId, CreatedAtUtc, OriginalQuery, CodeSeriesId)
+            VALUES (@ProjectId, @Level1, @Level2, @Level3, @Level4, @Level5, @Level6, @Number, @FreeText, @FileName, @CreatedByUserId, @CreatedAtUtc, @OriginalQuery, @CodeSeriesId)
             RETURNING Id;";
 
         await using var cmd = new NpgsqlCommand(sql, conn);
@@ -28,6 +28,8 @@ public sealed class DocumentRepository
         cmd.Parameters.AddWithValue("@Level2", key.Level2);
         cmd.Parameters.AddWithValue("@Level3", key.Level3);
         cmd.Parameters.AddWithValue("@Level4", (object?)key.Level4 ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@Level5", (object?)key.Level5 ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@Level6", (object?)key.Level6 ?? DBNull.Value);
         cmd.Parameters.AddWithValue("@Number", allocated.Number);
         cmd.Parameters.AddWithValue("@FreeText", (object?)freeText ?? DBNull.Value);
         cmd.Parameters.AddWithValue("@FileName", fileName);
@@ -45,13 +47,15 @@ public sealed class DocumentRepository
         await using var conn = factory.Create();
         await conn.OpenAsync(cancellationToken).ConfigureAwait(false);
 
-        const string sql = @"SELECT MAX(Number) FROM Documents WHERE ProjectId = @ProjectId AND Level1 = @Level1 AND Level2 = @Level2 AND Level3 = @Level3 AND (Level4 IS NOT DISTINCT FROM @Level4);";
+        const string sql = @"SELECT MAX(Number) FROM Documents WHERE ProjectId = @ProjectId AND Level1 = @Level1 AND Level2 = @Level2 AND Level3 = @Level3 AND (Level4 IS NOT DISTINCT FROM @Level4) AND (Level5 IS NOT DISTINCT FROM @Level5) AND (Level6 IS NOT DISTINCT FROM @Level6);";
         await using var cmd = new NpgsqlCommand(sql, conn);
         cmd.Parameters.AddWithValue("@ProjectId", key.ProjectId);
         cmd.Parameters.AddWithValue("@Level1", key.Level1);
         cmd.Parameters.AddWithValue("@Level2", key.Level2);
         cmd.Parameters.AddWithValue("@Level3", key.Level3);
         cmd.Parameters.AddWithValue("@Level4", (object?)key.Level4 ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@Level5", (object?)key.Level5 ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@Level6", (object?)key.Level6 ?? DBNull.Value);
 
         var result = await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
         if (result is DBNull or null) return null;
@@ -62,13 +66,15 @@ public sealed class DocumentRepository
     {
         await using var conn = factory.Create();
         await conn.OpenAsync(cancellationToken).ConfigureAwait(false);
-        const string sql = @"SELECT 1 FROM Documents WHERE ProjectId = @ProjectId AND Level1=@Level1 AND Level2=@Level2 AND Level3=@Level3 AND (Level4 IS NOT DISTINCT FROM @Level4) LIMIT 1;";
+        const string sql = @"SELECT 1 FROM Documents WHERE ProjectId = @ProjectId AND Level1=@Level1 AND Level2=@Level2 AND Level3=@Level3 AND (Level4 IS NOT DISTINCT FROM @Level4) AND (Level5 IS NOT DISTINCT FROM @Level5) AND (Level6 IS NOT DISTINCT FROM @Level6) LIMIT 1;";
         await using var cmd = new NpgsqlCommand(sql, conn);
         cmd.Parameters.AddWithValue("@ProjectId", key.ProjectId);
         cmd.Parameters.AddWithValue("@Level1", key.Level1);
         cmd.Parameters.AddWithValue("@Level2", key.Level2);
         cmd.Parameters.AddWithValue("@Level3", key.Level3);
         cmd.Parameters.AddWithValue("@Level4", (object?)key.Level4 ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@Level5", (object?)key.Level5 ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@Level6", (object?)key.Level6 ?? DBNull.Value);
 
         var result = await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
         return result != null;
@@ -91,7 +97,7 @@ public sealed class DocumentRepository
         var list = new List<DocumentRecord>();
         await using var conn = factory.Create();
         await conn.OpenAsync(cancellationToken).ConfigureAwait(false);
-        const string sql = @"SELECT Id, ProjectId, Level1, Level2, Level3, Level4, Number, FreeText, FileName, CreatedByUserId, CreatedAtUtc, OriginalQuery, CodeSeriesId FROM Documents WHERE ProjectId = @ProjectId ORDER BY Id DESC LIMIT @take;";
+        const string sql = @"SELECT Id, ProjectId, Level1, Level2, Level3, Level4, Level5, Level6, Number, FreeText, FileName, CreatedByUserId, CreatedAtUtc, OriginalQuery, CodeSeriesId FROM Documents WHERE ProjectId = @ProjectId ORDER BY Id DESC LIMIT @take;";
         await using var cmd = new NpgsqlCommand(sql, conn);
         cmd.Parameters.AddWithValue("@ProjectId", projectId);
         cmd.Parameters.AddWithValue("@take", take);
@@ -141,7 +147,7 @@ public sealed class DocumentRepository
 
         var whereClause = string.Join(" AND ", whereConditions);
         cmd.CommandText = $@"
-            SELECT Id, ProjectId, Level1, Level2, Level3, Level4, Number, FreeText, FileName, CreatedByUserId, CreatedAtUtc, OriginalQuery, CodeSeriesId
+            SELECT Id, ProjectId, Level1, Level2, Level3, Level4, Level5, Level6, Number, FreeText, FileName, CreatedByUserId, CreatedAtUtc, OriginalQuery, CodeSeriesId
             FROM Documents 
             WHERE {whereClause}
             ORDER BY Id DESC 
@@ -162,7 +168,7 @@ public sealed class DocumentRepository
         await using var conn = factory.Create();
         await conn.OpenAsync(cancellationToken).ConfigureAwait(false);
 
-        const string sql = @"SELECT Id, ProjectId, Level1, Level2, Level3, Level4, Number, FreeText, FileName, CreatedByUserId, CreatedAtUtc, OriginalQuery, CodeSeriesId FROM Documents WHERE ProjectId = @ProjectId ORDER BY Level1, Level2, Level3, Level4, Number;";
+        const string sql = @"SELECT Id, ProjectId, Level1, Level2, Level3, Level4, Level5, Level6, Number, FreeText, FileName, CreatedByUserId, CreatedAtUtc, OriginalQuery, CodeSeriesId FROM Documents WHERE ProjectId = @ProjectId ORDER BY Level1, Level2, Level3, Level4, Level5, Level6, Number;";
         await using var cmd = new NpgsqlCommand(sql, conn);
         cmd.Parameters.AddWithValue("@ProjectId", projectId);
 
@@ -178,7 +184,7 @@ public sealed class DocumentRepository
     {
         await using var conn = factory.Create();
         await conn.OpenAsync(cancellationToken).ConfigureAwait(false);
-        const string sql = @"SELECT Id, ProjectId, Level1, Level2, Level3, Level4, Number, FreeText, FileName, CreatedByUserId, CreatedAtUtc, OriginalQuery, CodeSeriesId FROM Documents WHERE ProjectId = @ProjectId AND Id = @id;";
+        const string sql = @"SELECT Id, ProjectId, Level1, Level2, Level3, Level4, Level5, Level6, Number, FreeText, FileName, CreatedByUserId, CreatedAtUtc, OriginalQuery, CodeSeriesId FROM Documents WHERE ProjectId = @ProjectId AND Id = @id;";
         await using var cmd = new NpgsqlCommand(sql, conn);
         cmd.Parameters.AddWithValue("@ProjectId", projectId);
         cmd.Parameters.AddWithValue("@id", id);
@@ -219,22 +225,24 @@ public sealed class DocumentRepository
         await conn.OpenAsync(cancellationToken).ConfigureAwait(false);
 
         const string sql = @"
-            INSERT INTO Documents (ProjectId, Level1, Level2, Level3, Level4, Number, FreeText, FileName, CreatedByUserId, CreatedAtUtc, OriginalQuery, CodeSeriesId)
+            INSERT INTO Documents (ProjectId, Level1, Level2, Level3, Level4, Level5, Level6, Number, FreeText, FileName, CreatedByUserId, CreatedAtUtc, OriginalQuery, CodeSeriesId)
             VALUES (
                 @ProjectId,
                 @Level1,
                 @Level2,
                 @Level3,
                 @Level4,
+                @Level5,
+                @Level6,
                 @Number,
                 @FreeText,
                 @FileName,
                 @CreatedByUserId,
                 @CreatedAtUtc,
                 NULL,
-                (SELECT Id FROM CodeSeries WHERE ProjectId = @ProjectId AND Level1 = @Level1 AND Level2 = @Level2 AND Level3 = @Level3 AND (Level4 IS NOT DISTINCT FROM @Level4) LIMIT 1)
+                (SELECT Id FROM CodeSeries WHERE ProjectId = @ProjectId AND Level1 = @Level1 AND Level2 = @Level2 AND Level3 = @Level3 AND (Level4 IS NOT DISTINCT FROM @Level4) AND (Level5 IS NOT DISTINCT FROM @Level5) AND (Level6 IS NOT DISTINCT FROM @Level6) LIMIT 1)
             )
-            ON CONFLICT(ProjectId, Level1, Level2, Level3, Level4, Number)
+            ON CONFLICT(ProjectId, Level1, Level2, Level3, Level4, Level5, Level6, Number)
             DO UPDATE SET
                 FreeText = EXCLUDED.FreeText,
                 FileName = EXCLUDED.FileName,
@@ -247,6 +255,8 @@ public sealed class DocumentRepository
         cmd.Parameters.AddWithValue("@Level2", key.Level2);
         cmd.Parameters.AddWithValue("@Level3", key.Level3);
         cmd.Parameters.AddWithValue("@Level4", (object?)key.Level4 ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@Level5", (object?)key.Level5 ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@Level6", (object?)key.Level6 ?? DBNull.Value);
         cmd.Parameters.AddWithValue("@Number", number);
         cmd.Parameters.AddWithValue("@FreeText", (object?)freeText ?? DBNull.Value);
         cmd.Parameters.AddWithValue("@FileName", fileName);
@@ -265,12 +275,14 @@ public sealed class DocumentRepository
             Level2 = reader.GetString(3),
             Level3 = reader.GetString(4),
             Level4 = reader.IsDBNull(5) ? null : reader.GetString(5),
-            Number = reader.GetInt32(6),
-            FreeText = reader.IsDBNull(7) ? null : reader.GetString(7),
-            FileName = reader.GetString(8),
-            CreatedByUserId = reader.GetInt64(9),
-            CreatedAtUtc = reader.GetDateTime(10),
-            OriginalQuery = reader.IsDBNull(11) ? null : reader.GetString(11),
-            CodeSeriesId = reader.GetInt64(12)
+            Level5 = reader.IsDBNull(6) ? null : reader.GetString(6),
+            Level6 = reader.IsDBNull(7) ? null : reader.GetString(7),
+            Number = reader.GetInt32(8),
+            FreeText = reader.IsDBNull(9) ? null : reader.GetString(9),
+            FileName = reader.GetString(10),
+            CreatedByUserId = reader.GetInt64(11),
+            CreatedAtUtc = reader.GetDateTime(12),
+            OriginalQuery = reader.IsDBNull(13) ? null : reader.GetString(13),
+            CodeSeriesId = reader.GetInt64(14)
         };
 }

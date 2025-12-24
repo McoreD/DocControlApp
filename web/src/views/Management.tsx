@@ -107,9 +107,9 @@ export default function Management() {
     resetStatus();
     try {
       const data = await CodesApi.exportJson(projectId);
-      const headers = ['Level1', 'Level2', 'Level3', 'Level4', 'Description', 'NextNumber'];
+      const headers = ['Level1', 'Level2', 'Level3', 'Level4', 'Level5', 'Level6', 'Description', 'NextNumber'];
       const rows = data.map((c: any) =>
-        [c.level1, c.level2, c.level3, c.level4 ?? '', c.description ?? '', c.nextNumber ?? ''].map((v) =>
+        [c.level1, c.level2, c.level3, c.level4 ?? '', c.level5 ?? '', c.level6 ?? '', c.description ?? '', c.nextNumber ?? ''].map((v) =>
           `"${String(v ?? '').replace(/"/g, '""')}"`
         ).join(',')
       );

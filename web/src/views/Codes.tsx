@@ -4,7 +4,7 @@ import { useProject } from '../lib/projectContext';
 
 type CodeSeries = {
   id: number;
-  key: { level1: string; level2: string; level3: string; level4?: string | null };
+  key: { level1: string; level2: string; level3: string; level4?: string | null; level5?: string | null; level6?: string | null };
   description?: string | null;
   nextNumber: number;
 };
@@ -66,8 +66,10 @@ export default function Codes() {
               </thead>
               <tbody>
                 {codes.map((c) => {
-                  const level = c.key.level4 ? 4 : c.key.level3 ? 3 : c.key.level2 ? 2 : 1;
+                  const level = c.key.level6 ? 6 : c.key.level5 ? 5 : c.key.level4 ? 4 : c.key.level3 ? 3 : c.key.level2 ? 2 : 1;
                   const code =
+                    level === 6 ? c.key.level6 :
+                    level === 5 ? c.key.level5 :
                     level === 4 ? c.key.level4 :
                     level === 3 ? c.key.level3 :
                     level === 2 ? c.key.level2 :
