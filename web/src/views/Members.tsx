@@ -109,7 +109,7 @@ export default function Members() {
 
   return (
     <div className="page">
-      <h1>Members</h1>
+      <h1>Members ({members.length})</h1>
       <p className="muted">Manage project members. Invites are sent from the Projects page; paste tokens here to accept.</p>
       {message && <div className="pill" style={{ background: '#ecfdf3', color: '#166534' }}>{message}</div>}
       {error && <div className="pill" style={{ background: '#fee2e2', color: '#991b1b' }}>{error}</div>}

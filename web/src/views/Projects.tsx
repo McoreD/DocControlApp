@@ -82,7 +82,7 @@ export default function Projects() {
 
   return (
     <div className="page">
-      <h1>Projects</h1>
+      <h1>Projects ({projects.length})</h1>
 
       <div className="card" style={{ marginTop: 12 }}>
         <h3>Accessible Projects</h3>

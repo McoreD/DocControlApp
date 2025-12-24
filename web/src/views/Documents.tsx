@@ -44,7 +44,7 @@ export default function Documents() {
 
   return (
     <div className="page">
-      <h1>Documents</h1>
+      <h1>Documents ({docs.length})</h1>
       <p className="muted">List and filter documents per project. Filters: level1, level2, level3, q (file/free text).</p>
       {!projectId && <div className="pill">Select a project first.</div>}
       <div className="row" style={{ marginBottom: 12, alignItems: 'center' }}>

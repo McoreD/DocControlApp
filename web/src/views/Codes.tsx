@@ -34,7 +34,7 @@ export default function Codes() {
 
   return (
     <div className="page">
-      <h1>Codes</h1>
+      <h1>Codes ({codes.length})</h1>
       <p className="muted">Import or manage code catalog per project. Use CSV format: Level,Code,Code Description.</p>
       {!projectId && <div className="pill">Select a project first.</div>}
       {error && <div className="pill" style={{ background: '#fee2e2', color: '#991b1b' }}>{error}</div>}
