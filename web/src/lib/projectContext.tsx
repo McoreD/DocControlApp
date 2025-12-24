@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useState } from 'react';
+import { ProjectsApi } from './api';
 
 type ProjectContextValue = {
   projectId: number | null;
@@ -23,6 +24,29 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       setProjectNameState(storedName);
     }
   }, []);
+
+  // Refresh the project name from the API when we have an id but no friendly name.
+  useEffect(() => {
+    let cancelled = false;
+    const shouldFetch = projectId !== null && (!projectName || projectName === `Project ${projectId}`);
+    if (!shouldFetch) return;
+
+    (async () => {
+      try {
+        const project = await ProjectsApi.get(projectId!);
+        if (!cancelled && project?.name) {
+          setProjectNameState(project.name);
+          localStorage.setItem('dc.projectName', project.name);
+        }
+      } catch {
+        // Ignore fetch errors; keep fallback title.
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [projectId, projectName]);
 
   useEffect(() => {
     const titleSuffix = projectId ? projectName ?? `Project ${projectId}` : null;

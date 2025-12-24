@@ -44,6 +44,7 @@ export async function api<T>(path: string, method: HttpMethod = 'GET', body?: un
 export const ProjectsApi = {
   list: () => api<any[]>('/projects'),
   create: (name: string, description: string) => api<any>('/projects', 'POST', { name, description }),
+  get: (projectId: number) => api<any>(`/projects/${projectId}`),
 };
 
 export const AuthApi = {
