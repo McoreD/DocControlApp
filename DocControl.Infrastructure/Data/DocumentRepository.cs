@@ -119,7 +119,7 @@ public sealed class DocumentRepository
         return list;
     }
 
-    public async Task<IReadOnlyList<DocumentRecord>> GetFilteredAsync(long projectId, string? level1Filter = null, string? level2Filter = null, string? level3Filter = null, string? fileNameFilter = null, int take = 1000, CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<DocumentRecord>> GetFilteredAsync(long projectId, string? level1Filter = null, string? level2Filter = null, string? level3Filter = null, string? fileNameFilter = null, int take = 1000, int skip = 0, CancellationToken cancellationToken = default)
     {
         var list = new List<DocumentRecord>();
         await using var conn = factory.Create();
@@ -160,8 +160,10 @@ public sealed class DocumentRepository
             FROM Documents 
             WHERE {whereClause}
             ORDER BY Id DESC 
-            LIMIT @take;";
+            LIMIT @take
+            OFFSET @skip;";
         cmd.Parameters.AddWithValue("@take", take);
+        cmd.Parameters.AddWithValue("@skip", skip);
 
         await using var reader = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
         while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
@@ -169,6 +171,46 @@ public sealed class DocumentRepository
             list.Add(ReadDocument(reader));
         }
         return list;
+    }
+
+    public async Task<int> CountFilteredAsync(long projectId, string? level1Filter = null, string? level2Filter = null, string? level3Filter = null, string? fileNameFilter = null, CancellationToken cancellationToken = default)
+    {
+        await using var conn = factory.Create();
+        await conn.OpenAsync(cancellationToken).ConfigureAwait(false);
+
+        var whereConditions = new List<string> { "ProjectId = @ProjectId" };
+        await using var cmd = new NpgsqlCommand();
+        cmd.Connection = conn;
+        cmd.Parameters.AddWithValue("@ProjectId", projectId);
+
+        if (!string.IsNullOrWhiteSpace(level1Filter))
+        {
+            whereConditions.Add("Level1 ILIKE @level1");
+            cmd.Parameters.AddWithValue("@level1", $"%{level1Filter}%");
+        }
+
+        if (!string.IsNullOrWhiteSpace(level2Filter))
+        {
+            whereConditions.Add("Level2 ILIKE @level2");
+            cmd.Parameters.AddWithValue("@level2", $"%{level2Filter}%");
+        }
+
+        if (!string.IsNullOrWhiteSpace(level3Filter))
+        {
+            whereConditions.Add("Level3 ILIKE @level3");
+            cmd.Parameters.AddWithValue("@level3", $"%{level3Filter}%");
+        }
+
+        if (!string.IsNullOrWhiteSpace(fileNameFilter))
+        {
+            whereConditions.Add("(FreeText ILIKE @filter OR FileName ILIKE @filter)");
+            cmd.Parameters.AddWithValue("@filter", $"%{fileNameFilter}%");
+        }
+
+        var whereClause = string.Join(" AND ", whereConditions);
+        cmd.CommandText = $"SELECT COUNT(*) FROM Documents WHERE {whereClause};";
+        var result = await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
+        return Convert.ToInt32(result ?? 0);
     }
 
     public async Task<IReadOnlyList<DocumentRecord>> GetAllAsync(long projectId, CancellationToken cancellationToken = default)

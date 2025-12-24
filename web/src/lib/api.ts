@@ -129,8 +129,16 @@ export const MembersApi = {
 };
 
 export const DocumentsApi = {
-  list: (projectId: number, q?: string) =>
-    api<any[]>(`/projects/${projectId}/documents${q ? `?q=${encodeURIComponent(q)}` : ''}`),
+  list: (projectId: number, opts?: { q?: string; take?: number; skip?: number }) => {
+    const params = new URLSearchParams();
+    if (opts?.q) params.set('q', opts.q);
+    if (opts?.take) params.set('take', String(opts.take));
+    if (opts?.skip) params.set('skip', String(opts.skip));
+    const suffix = params.toString();
+    return api<{ items: any[]; total: number; skip: number; take: number }>(
+      `/projects/${projectId}/documents${suffix ? `?${suffix}` : ''}`
+    );
+  },
   create: (
     projectId: number,
     payload: {

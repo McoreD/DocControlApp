@@ -27,18 +27,23 @@ export default function Documents() {
   const [docs, setDocs] = useState<Document[]>([]);
   const [projectConfig, setProjectConfig] = useState<ProjectConfig | null>(null);
   const [q, setQ] = useState('');
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
   const [sortKey, setSortKey] = useState<'code' | 'freeText' | 'createdAtUtc'>('createdAtUtc');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const pageSize = 50;
 
   const load = async () => {
     if (!projectId) return;
     setLoading(true);
     setError(null);
     try {
-      const data = await DocumentsApi.list(projectId, q);
-      setDocs(data);
+      const skip = (page - 1) * pageSize;
+      const data = await DocumentsApi.list(projectId, { q, take: pageSize, skip });
+      setDocs(data.items ?? []);
+      setTotal(data.total ?? 0);
     } catch (err: any) {
       setError(err.message ?? 'Failed to load documents');
     } finally {
@@ -49,7 +54,7 @@ export default function Documents() {
   useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [projectId]);
+  }, [projectId, page]);
 
   useEffect(() => {
     if (!projectId) {
@@ -114,17 +119,24 @@ export default function Documents() {
 
   return (
     <div className="page">
-      <h1>Documents ({docs.length})</h1>
+      <h1>Documents ({total})</h1>
       <p className="muted">List and filter documents per project. Filters: level1, level2, level3, q (file/free text).</p>
       {!projectId && <div className="pill">Select a project first.</div>}
       <div className="row" style={{ marginBottom: 12, alignItems: 'center' }}>
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search free text or file name" />
-        <button onClick={load} disabled={!projectId || loading}>
+        <button
+          onClick={() => {
+            setPage(1);
+            load();
+          }}
+          disabled={!projectId || loading}
+        >
           {loading ? 'Loading...' : 'Search'}
         </button>
         <button
           onClick={() => {
             setQ('');
+            setPage(1);
             load();
           }}
           disabled={!projectId || loading}
@@ -134,6 +146,22 @@ export default function Documents() {
         </button>
       </div>
       {error && <div className="pill" style={{ background: '#fee2e2', color: '#991b1b' }}>{error}</div>}
+      {total > 0 && (
+        <div className="row" style={{ gap: 8, alignItems: 'center', marginBottom: 8 }}>
+          <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1 || loading}>
+            Previous
+          </button>
+          <div className="muted">
+            Page {page} of {Math.max(1, Math.ceil(total / pageSize))}
+          </div>
+          <button
+            onClick={() => setPage((p) => p + 1)}
+            disabled={page >= Math.ceil(total / pageSize) || loading}
+          >
+            Next
+          </button>
+        </div>
+      )}
       <div className="card">
         {docs.length === 0 && !loading ? <p className="muted">No documents yet.</p> : null}
         {docs.length > 0 && (
