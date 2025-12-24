@@ -193,6 +193,7 @@ export default function Members() {
 
           <div className="card" style={{ marginTop: 12 }}>
             <strong>Members</strong>
+            <p className="muted">Members for this project{projectId ? ` (ID: ${projectId})` : ''}.</p>
             {loading ? <p className="muted">Loading...</p> : null}
             {!loading && members.length === 0 ? <p className="muted">No members yet.</p> : null}
             {members.length > 0 && (
@@ -218,9 +219,11 @@ export default function Members() {
                       </td>
                       <td className="muted">{new Date(m.addedAtUtc).toLocaleString()}</td>
                       <td>
-                        <button onClick={() => remove(m.userId)} style={{ background: '#ef4444', color: '#f8fafc' }}>
-                          Remove
-                        </button>
+                        {members.length > 1 && (
+                          <button onClick={() => remove(m.userId)} style={{ background: '#ef4444', color: '#f8fafc' }}>
+                            Remove
+                          </button>
+                        )}
                       </td>
                     </tr>
                   ))}
