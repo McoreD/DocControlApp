@@ -120,7 +120,7 @@ public sealed class ImportsFunctions
             var seriesKey = $"{key.Level1}|{key.Level2}|{key.Level3}|{key.Level4 ?? string.Empty}|{key.Level5 ?? string.Empty}|{key.Level6 ?? string.Empty}";
             if (!seriesCache.TryGetValue(seriesKey, out var exists))
             {
-                exists = await codeSeriesRepository.ExistsAsync(key, req.FunctionContext.CancellationToken);
+                exists = await codeSeriesRepository.ExistsAsync(key, cancellationToken: req.FunctionContext.CancellationToken);
                 seriesCache[seriesKey] = exists;
             }
             var description = exists ? null : importNote;
@@ -178,7 +178,7 @@ public sealed class ImportsFunctions
             var seriesKey = $"{key.Level1}|{key.Level2}|{key.Level3}|{key.Level4 ?? string.Empty}|{key.Level5 ?? string.Empty}|{key.Level6 ?? string.Empty}";
             if (!seriesCache.TryGetValue(seriesKey, out var exists))
             {
-                exists = await codeSeriesRepository.ExistsAsync(key, req.FunctionContext.CancellationToken);
+                exists = await codeSeriesRepository.ExistsAsync(key, cancellationToken: req.FunctionContext.CancellationToken);
                 seriesCache[seriesKey] = exists;
             }
             var description = exists ? null : importNote;
@@ -257,7 +257,7 @@ public sealed class ImportsFunctions
             var seriesKey = $"{key.Level1}|{key.Level2}|{key.Level3}|{key.Level4 ?? string.Empty}|{key.Level5 ?? string.Empty}|{key.Level6 ?? string.Empty}";
             if (!seriesCache.TryGetValue(seriesKey, out var exists))
             {
-                exists = await codeSeriesRepository.ExistsAsync(key, req.FunctionContext.CancellationToken);
+                exists = await codeSeriesRepository.ExistsAsync(key, cancellationToken: req.FunctionContext.CancellationToken);
                 seriesCache[seriesKey] = exists;
             }
             var description = exists ? null : importNote;
