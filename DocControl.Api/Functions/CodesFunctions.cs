@@ -141,6 +141,26 @@ public sealed class CodesFunctions
         return await req.ToJsonAsync(new { deletedDocuments = deletedDocs, deletedCodes = logicalCodes }, HttpStatusCode.OK, jsonOptions);
     }
 
+    [Function("CodeSeries_Purge")]
+    public async Task<HttpResponseData> PurgeSeriesAsync(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "projects/{projectId:long}/series/purge")] HttpRequestData req,
+        long projectId)
+    {
+        var (ok, auth, _) = await authFactory.BindAsync(req, req.FunctionContext.CancellationToken);
+        if (!ok || auth is null) return await req.ErrorAsync(HttpStatusCode.Unauthorized, "Auth required");
+        if (!auth.MfaEnabled) return await req.ErrorAsync(HttpStatusCode.Forbidden, "MFA required");
+        if (!await IsAtLeast(projectId, auth.UserId, Roles.Owner, req.FunctionContext.CancellationToken)) return await req.ErrorAsync(HttpStatusCode.Forbidden, "Owner role required");
+
+        var docCount = await documentRepository.CountFilteredAsync(projectId, null, null, null, null, req.FunctionContext.CancellationToken).ConfigureAwait(false);
+        if (docCount > 0)
+        {
+            return await req.ErrorAsync(HttpStatusCode.BadRequest, "Cannot purge code series while documents exist. Purge documents first.");
+        }
+
+        var deletedSeries = await codeSeriesRepository.PurgeAsync(projectId, req.FunctionContext.CancellationToken).ConfigureAwait(false);
+        return await req.ToJsonAsync(new { deletedSeries }, HttpStatusCode.OK, jsonOptions);
+    }
+
     [Function("Codes_ExportJson")]
     public async Task<HttpResponseData> ExportAsync(
         [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "projects/{projectId:long}/codes/export")] HttpRequestData req,

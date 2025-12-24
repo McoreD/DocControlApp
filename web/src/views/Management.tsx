@@ -310,6 +310,24 @@ export default function Management() {
     }
   };
 
+  const purgeSeries = async () => {
+    if (!projectId) return;
+    const confirmed = window.confirm('Permanently delete all code series counters. Documents must be empty. Continue?');
+    if (!confirmed) return;
+    setLoading(true);
+    setCurrentAction('purgeSeries');
+    resetStatus();
+    try {
+      const result = await CodesApi.purgeSeries(projectId);
+      setMessage(`Deleted ${result.deletedSeries} code series.`);
+    } catch (err: any) {
+      setError(err.message ?? 'Failed to purge code series');
+    } finally {
+      setLoading(false);
+      setCurrentAction(null);
+    }
+  };
+
   return (
     <div className="page">
       <h1>Management</h1>
@@ -370,6 +388,9 @@ MIC-GAI-BST-002,DocControl Scope`}
               </button>
               <button onClick={purgeCodes} disabled={loading} style={{ background: '#b91c1c' }}>
                 {loading && currentAction === 'purgeCodes' ? 'Purging...' : 'Purge codes'}
+              </button>
+              <button onClick={purgeSeries} disabled={loading} style={{ background: '#b91c1c' }}>
+                {loading && currentAction === 'purgeSeries' ? 'Purging...' : 'Purge code series'}
               </button>
             </div>
           </div>

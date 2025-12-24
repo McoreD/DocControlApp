@@ -127,6 +127,7 @@ export const CodesApi = {
   importJson: (projectId: number, codes: any[]) => api<any>(`/projects/${projectId}/codes/import/json`, 'POST', codes),
   exportJson: (projectId: number) => api<any[]>(`/projects/${projectId}/codes/export`),
   purge: (projectId: number) => api<{ deletedDocuments: number; deletedCodes: number }>(`/projects/${projectId}/codes/purge`, 'DELETE'),
+  purgeSeries: (projectId: number) => api<{ deletedSeries: number }>(`/projects/${projectId}/series/purge`, 'DELETE'),
 };
 
 export const MembersApi = {

@@ -154,6 +154,9 @@ export default function Documents() {
       {error && <div className="pill" style={{ background: '#fee2e2', color: '#991b1b' }}>{error}</div>}
       {total > 0 && (
         <div className="row" style={{ gap: 8, alignItems: 'center', marginBottom: 8 }}>
+          <button onClick={() => setPage(1)} disabled={page === 1 || loading}>
+            First
+          </button>
           <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1 || loading}>
             Previous
           </button>
@@ -165,6 +168,12 @@ export default function Documents() {
             disabled={page >= Math.ceil(total / pageSize) || loading}
           >
             Next
+          </button>
+          <button
+            onClick={() => setPage(Math.max(1, Math.ceil(total / pageSize)))}
+            disabled={page >= Math.ceil(total / pageSize) || loading}
+          >
+            Last
           </button>
         </div>
       )}
