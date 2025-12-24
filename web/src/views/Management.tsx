@@ -130,6 +130,13 @@ export default function Management() {
     setLoading(true);
     resetStatus();
     try {
+      const count = (() => {
+        const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+        if (lines.length === 0) return 0;
+        const data = lines[0].toLowerCase().startsWith('code') ? lines.slice(1) : lines;
+        return data.length;
+      })();
+      setMessage(`Importing ${count} document(s)...`);
       const result = await DocumentsApi.importCsv(projectId, text);
       const imported = result?.imported ?? 0;
       const errors = result?.errors?.length ?? 0;
@@ -149,8 +156,10 @@ export default function Management() {
     resetStatus();
     try {
       const parsed = JSON.parse(text);
+      const planned = Array.isArray(parsed) ? parsed.length : parsed?.entries?.length ?? 0;
+      if (planned > 0) setMessage(`Importing ${planned} document(s)...`);
       const result = await DocumentsApi.importJson(projectId, parsed);
-      const imported = result?.imported ?? (Array.isArray(parsed) ? parsed.length : parsed?.entries?.length ?? 0);
+      const imported = result?.imported ?? planned;
       setMessage(`Imported ${imported} document(s) from JSON.`);
     } catch (err: any) {
       setError(err.message ?? 'Document import failed');

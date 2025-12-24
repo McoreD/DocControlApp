@@ -194,10 +194,14 @@ public sealed class ImportsFunctions
         catch (JsonException ex)
         {
             logger.LogWarning(ex, "Invalid document import JSON payload");
-            return await req.ErrorAsync(HttpStatusCode.BadRequest, "Invalid JSON payload");
+            return await req.ErrorAsync(HttpStatusCode.BadRequest, $"Invalid JSON payload: {ex.Message}");
         }
 
         if (entries is null || entries.Count == 0) return await req.ErrorAsync(HttpStatusCode.BadRequest, "No entries");
+        if (entries.Any(e => string.IsNullOrWhiteSpace(e.Code)))
+        {
+            return await req.ErrorAsync(HttpStatusCode.BadRequest, "Each entry must include a code");
+        }
 
         var now = DateTime.UtcNow;
         var imported = 0;
