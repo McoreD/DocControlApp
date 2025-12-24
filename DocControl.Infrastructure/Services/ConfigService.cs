@@ -11,16 +11,15 @@ public sealed class ConfigService
     private const string DocumentConfigKey = "DocumentConfig";
     private const string AiSettingsKey = "AiSettings";
     private const string ProjectScope = "Project";
-    private const string OpenAiKeyConfigKey = "OpenAiKey";
-    private const string GeminiKeyConfigKey = "GeminiKey";
-
     private readonly ConfigRepository configRepository;
-    private readonly IApiKeyStore apiKeyStore;
+    private readonly UserRepository userRepository;
 
-    public ConfigService(ConfigRepository configRepository, IApiKeyStore apiKeyStore)
+    public ConfigService(
+        ConfigRepository configRepository,
+        UserRepository userRepository)
     {
         this.configRepository = configRepository;
-        this.apiKeyStore = apiKeyStore;
+        this.userRepository = userRepository;
     }
 
     public async Task<DocumentConfig> LoadDocumentConfigAsync(long projectId, CancellationToken cancellationToken = default)
@@ -63,41 +62,61 @@ public sealed class ConfigService
             }
         }
 
-        // Load keys from secure store (not returned for safety)
-        await apiKeyStore.GetAsync(settings.OpenAiCredentialName, cancellationToken).ConfigureAwait(false);
-        await apiKeyStore.GetAsync(settings.GeminiCredentialName, cancellationToken).ConfigureAwait(false);
         return settings;
     }
 
-    public async Task<(bool hasOpenAi, bool hasGemini)> GetAiKeyStatusAsync(AiSettings settings, CancellationToken cancellationToken = default)
+    public async Task<(bool hasOpenAi, bool hasGemini)> GetAiKeyStatusAsync(AiSettings settings, long userId, CancellationToken cancellationToken = default)
     {
-        var openAiKey = await GetApiKeyAsync(settings.OpenAiCredentialName, OpenAiKeyConfigKey, cancellationToken).ConfigureAwait(false);
-        var geminiKey = await GetApiKeyAsync(settings.GeminiCredentialName, GeminiKeyConfigKey, cancellationToken).ConfigureAwait(false);
-        return (!string.IsNullOrWhiteSpace(openAiKey), !string.IsNullOrWhiteSpace(geminiKey));
+        var (openAiEncrypted, geminiEncrypted) = await userRepository.GetAiKeysEncryptedAsync(userId, cancellationToken).ConfigureAwait(false);
+        return (!string.IsNullOrWhiteSpace(openAiEncrypted), !string.IsNullOrWhiteSpace(geminiEncrypted));
     }
 
-    public async Task SaveAiSettingsAsync(long projectId, AiSettings settings, string openAiKey, string geminiKey, CancellationToken cancellationToken = default)
+    public async Task SaveAiSettingsAsync(
+        long projectId,
+        long userId,
+        AiSettings settings,
+        string openAiKey,
+        string geminiKey,
+        bool clearOpenAi,
+        bool clearGemini,
+        CancellationToken cancellationToken = default)
     {
         var json = JsonSerializer.Serialize(settings);
         await configRepository.SetAsync(ProjectScope, projectId, AiSettingsKey, json, cancellationToken).ConfigureAwait(false);
 
-        if (!string.IsNullOrWhiteSpace(openAiKey))
+        var user = await userRepository.GetPasswordAuthByIdAsync(userId, cancellationToken).ConfigureAwait(false);
+        if (user?.PasswordHash is null || user.KeySalt is null)
         {
-            await apiKeyStore.SaveAsync(settings.OpenAiCredentialName, openAiKey, cancellationToken).ConfigureAwait(false);
-            await configRepository.SetAsync(ProjectScope, projectId, OpenAiKeyConfigKey, openAiKey, cancellationToken).ConfigureAwait(false);
+            throw new InvalidOperationException("Password is required to store API keys.");
         }
-        if (!string.IsNullOrWhiteSpace(geminiKey))
+
+        var protector = CreateProtector(user.PasswordHash, user.KeySalt);
+        var openAiEncrypted = string.IsNullOrWhiteSpace(openAiKey) ? null : protector.Encrypt(openAiKey);
+        var geminiEncrypted = string.IsNullOrWhiteSpace(geminiKey) ? null : protector.Encrypt(geminiKey);
+        if (openAiEncrypted is not null || geminiEncrypted is not null || clearOpenAi || clearGemini)
         {
-            await apiKeyStore.SaveAsync(settings.GeminiCredentialName, geminiKey, cancellationToken).ConfigureAwait(false);
-            await configRepository.SetAsync(ProjectScope, projectId, GeminiKeyConfigKey, geminiKey, cancellationToken).ConfigureAwait(false);
+            await userRepository.SaveAiKeysEncryptedAsync(userId, openAiEncrypted, geminiEncrypted, clearOpenAi, clearGemini, cancellationToken).ConfigureAwait(false);
         }
     }
 
-    public async Task<AiClientOptions> BuildAiOptionsAsync(AiSettings settings, CancellationToken cancellationToken = default)
+    public async Task<AiClientOptions> BuildAiOptionsAsync(AiSettings settings, long userId, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(settings);
-        var openAiKey = await GetApiKeyAsync(settings.OpenAiCredentialName, OpenAiKeyConfigKey, cancellationToken).ConfigureAwait(false) ?? string.Empty;
-        var geminiKey = await GetApiKeyAsync(settings.GeminiCredentialName, GeminiKeyConfigKey, cancellationToken).ConfigureAwait(false) ?? string.Empty;
+        var user = await userRepository.GetPasswordAuthByIdAsync(userId, cancellationToken).ConfigureAwait(false);
+        if (user?.PasswordHash is null || user.KeySalt is null)
+        {
+            return new AiClientOptions
+            {
+                DefaultProvider = settings.Provider,
+                OpenAi = new OpenAiOptions { ApiKey = string.Empty, Model = settings.OpenAiModel },
+                Gemini = new GeminiOptions { ApiKey = string.Empty, Model = settings.GeminiModel }
+            };
+        }
+
+        var protector = CreateProtector(user.PasswordHash, user.KeySalt);
+        var (openAiEncrypted, geminiEncrypted) = await userRepository.GetAiKeysEncryptedAsync(user.Id, cancellationToken).ConfigureAwait(false);
+        var openAiKey = protector.Decrypt(openAiEncrypted ?? string.Empty) ?? string.Empty;
+        var geminiKey = protector.Decrypt(geminiEncrypted ?? string.Empty) ?? string.Empty;
 
         return new AiClientOptions
         {
@@ -107,12 +126,9 @@ public sealed class ConfigService
         };
     }
 
-    private async Task<string?> GetApiKeyAsync(string credentialName, string configKey, CancellationToken cancellationToken)
+    private static AesGcmSecretProtector CreateProtector(string passwordHash, string keySalt)
     {
-        var fromStore = await apiKeyStore.GetAsync(credentialName, cancellationToken).ConfigureAwait(false);
-        if (!string.IsNullOrWhiteSpace(fromStore)) return fromStore;
-
-        var fromConfig = await configRepository.GetAsync(ProjectScope, null, configKey, cancellationToken).ConfigureAwait(false);
-        return string.IsNullOrWhiteSpace(fromConfig) ? null : fromConfig;
+        var key = PasswordHasher.DeriveEncryptionKey(passwordHash, keySalt);
+        return new AesGcmSecretProtector(key);
     }
 }

@@ -45,7 +45,7 @@ public sealed class AiFunctions
         if (!auth.MfaEnabled) return await req.ErrorAsync(HttpStatusCode.Forbidden, "MFA required");
         if (!await IsAtLeast(projectId, auth.UserId, Roles.Viewer, req.FunctionContext.CancellationToken)) return await req.ErrorAsync(HttpStatusCode.Forbidden, "Access denied");
 
-        var orchestrator = await aiFactory.CreateAsync(projectId, req.FunctionContext.CancellationToken).ConfigureAwait(false);
+        var orchestrator = await aiFactory.CreateAsync(projectId, auth.UserId, req.FunctionContext.CancellationToken).ConfigureAwait(false);
         if (orchestrator is null) return await req.ErrorAsync(HttpStatusCode.BadRequest, "AI keys not configured for this project");
 
         QueryRequest? payload;
@@ -79,7 +79,7 @@ public sealed class AiFunctions
         if (!auth.MfaEnabled) return await req.ErrorAsync(HttpStatusCode.Forbidden, "MFA required");
         if (!await IsAtLeast(projectId, auth.UserId, Roles.Viewer, req.FunctionContext.CancellationToken)) return await req.ErrorAsync(HttpStatusCode.Forbidden, "Access denied");
 
-        var orchestrator = await aiFactory.CreateAsync(projectId, req.FunctionContext.CancellationToken).ConfigureAwait(false);
+        var orchestrator = await aiFactory.CreateAsync(projectId, auth.UserId, req.FunctionContext.CancellationToken).ConfigureAwait(false);
         if (orchestrator is null) return await req.ErrorAsync(HttpStatusCode.BadRequest, "AI keys not configured for this project");
 
         QueryRequest? payload;

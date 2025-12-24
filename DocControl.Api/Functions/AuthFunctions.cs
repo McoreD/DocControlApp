@@ -2,6 +2,7 @@ using System.Net;
 using System.Text.Json;
 using DocControl.Api.Infrastructure;
 using DocControl.Api.Services;
+using DocControl.Core.Security;
 using DocControl.Infrastructure.Data;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
@@ -54,13 +55,191 @@ public sealed class AuthFunctions
         {
             return await req.ErrorAsync(HttpStatusCode.BadRequest, "Email is required");
         }
+        if (string.IsNullOrWhiteSpace(payload.Password))
+        {
+            return await req.ErrorAsync(HttpStatusCode.BadRequest, "Password is required");
+        }
 
         var displayName = string.IsNullOrWhiteSpace(payload.DisplayName) ? payload.Email.Trim() : payload.DisplayName.Trim();
         var user = await userRepository.RegisterAsync(payload.Email.Trim(), displayName, req.FunctionContext.CancellationToken).ConfigureAwait(false);
+        var existingAuth = await userRepository.GetPasswordAuthByIdAsync(user.Id, req.FunctionContext.CancellationToken).ConfigureAwait(false);
+        if (existingAuth?.PasswordHash is not null)
+        {
+            return await req.ErrorAsync(HttpStatusCode.Conflict, "Account already has a password. Please log in.");
+        }
+
+        var (hash, salt, keySalt) = PasswordHasher.HashPassword(payload.Password);
+        await userRepository.SetPasswordAsync(user.Id, hash, salt, keySalt, req.FunctionContext.CancellationToken).ConfigureAwait(false);
+
         await userAuthRepository.EnsureExistsAsync(user.Id, req.FunctionContext.CancellationToken).ConfigureAwait(false);
         var auth = await userAuthRepository.GetAsync(user.Id, req.FunctionContext.CancellationToken).ConfigureAwait(false);
         var mfaEnabled = auth?.MfaEnabled ?? false;
-        return await req.ToJsonAsync(new { user.Id, user.Email, user.DisplayName, user.CreatedAtUtc, MfaEnabled = mfaEnabled }, HttpStatusCode.Created, jsonOptions);
+        return await req.ToJsonAsync(new
+        {
+            user.Id,
+            user.Email,
+            user.DisplayName,
+            user.CreatedAtUtc,
+            MfaEnabled = mfaEnabled,
+            RequiresPasswordReset = false
+        }, HttpStatusCode.Created, jsonOptions);
+    }
+
+    [Function("Auth_Login")]
+    public async Task<HttpResponseData> LoginAsync(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "auth/login")] HttpRequestData req)
+    {
+        LoginRequest? payload;
+        try
+        {
+            payload = await JsonSerializer.DeserializeAsync<LoginRequest>(req.Body, jsonOptions, req.FunctionContext.CancellationToken);
+        }
+        catch (JsonException ex)
+        {
+            logger.LogWarning(ex, "Invalid login payload");
+            return await req.ErrorAsync(HttpStatusCode.BadRequest, "Invalid JSON payload");
+        }
+
+        if (payload is null || string.IsNullOrWhiteSpace(payload.Email) || string.IsNullOrWhiteSpace(payload.Password))
+        {
+            return await req.ErrorAsync(HttpStatusCode.BadRequest, "Email and password are required");
+        }
+
+        var user = await userRepository.GetPasswordAuthByEmailAsync(payload.Email.Trim(), req.FunctionContext.CancellationToken).ConfigureAwait(false);
+        if (user is null)
+        {
+            return await req.ErrorAsync(HttpStatusCode.Unauthorized, "Invalid email or password");
+        }
+
+        if (string.IsNullOrWhiteSpace(user.PasswordHash) || string.IsNullOrWhiteSpace(user.PasswordSalt))
+        {
+            return await req.ErrorAsync(HttpStatusCode.Conflict, "Password not set. Please set your password.");
+        }
+
+        if (!PasswordHasher.Verify(payload.Password, user.PasswordHash, user.PasswordSalt))
+        {
+            return await req.ErrorAsync(HttpStatusCode.Unauthorized, "Invalid email or password");
+        }
+
+        await userAuthRepository.EnsureExistsAsync(user.Id, req.FunctionContext.CancellationToken).ConfigureAwait(false);
+        var auth = await userAuthRepository.GetAsync(user.Id, req.FunctionContext.CancellationToken).ConfigureAwait(false);
+        var mfaEnabled = auth?.MfaEnabled ?? false;
+
+        return await req.ToJsonAsync(new
+        {
+            user.Id,
+            user.Email,
+            user.DisplayName,
+            MfaEnabled = mfaEnabled,
+            RequiresPasswordReset = false
+        }, HttpStatusCode.OK, jsonOptions);
+    }
+
+    [Function("Auth_Password_Initial")]
+    public async Task<HttpResponseData> SetInitialPasswordAsync(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "auth/password/initial")] HttpRequestData req)
+    {
+        InitialPasswordRequest? payload;
+        try
+        {
+            payload = await JsonSerializer.DeserializeAsync<InitialPasswordRequest>(req.Body, jsonOptions, req.FunctionContext.CancellationToken);
+        }
+        catch (JsonException ex)
+        {
+            logger.LogWarning(ex, "Invalid initial password payload");
+            return await req.ErrorAsync(HttpStatusCode.BadRequest, "Invalid JSON payload");
+        }
+
+        if (payload is null || string.IsNullOrWhiteSpace(payload.Email) || string.IsNullOrWhiteSpace(payload.Password))
+        {
+            return await req.ErrorAsync(HttpStatusCode.BadRequest, "Email and password are required");
+        }
+
+        var user = await userRepository.GetPasswordAuthByEmailAsync(payload.Email.Trim(), req.FunctionContext.CancellationToken).ConfigureAwait(false);
+        if (user is null)
+        {
+            return await req.ErrorAsync(HttpStatusCode.NotFound, "User not found");
+        }
+
+        if (!string.IsNullOrWhiteSpace(user.PasswordHash))
+        {
+            return await req.ErrorAsync(HttpStatusCode.Conflict, "Password already set. Please log in.");
+        }
+
+        var (hash, salt, keySalt) = PasswordHasher.HashPassword(payload.Password);
+        await userRepository.SetPasswordAsync(user.Id, hash, salt, keySalt, req.FunctionContext.CancellationToken).ConfigureAwait(false);
+        await userAuthRepository.EnsureExistsAsync(user.Id, req.FunctionContext.CancellationToken).ConfigureAwait(false);
+        var auth = await userAuthRepository.GetAsync(user.Id, req.FunctionContext.CancellationToken).ConfigureAwait(false);
+        var mfaEnabled = auth?.MfaEnabled ?? false;
+
+        return await req.ToJsonAsync(new
+        {
+            user.Id,
+            user.Email,
+            user.DisplayName,
+            MfaEnabled = mfaEnabled,
+            RequiresPasswordReset = false
+        }, HttpStatusCode.OK, jsonOptions);
+    }
+
+    [Function("Auth_Password_Change")]
+    public async Task<HttpResponseData> ChangePasswordAsync(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "auth/password/change")] HttpRequestData req)
+    {
+        var (ok, authContext, _) = await authFactory.BindAsync(req, req.FunctionContext.CancellationToken);
+        if (!ok || authContext is null) return await req.ErrorAsync(HttpStatusCode.Unauthorized, "Auth required");
+
+        ChangePasswordRequest? payload;
+        try
+        {
+            payload = await JsonSerializer.DeserializeAsync<ChangePasswordRequest>(req.Body, jsonOptions, req.FunctionContext.CancellationToken);
+        }
+        catch (JsonException ex)
+        {
+            logger.LogWarning(ex, "Invalid change password payload");
+            return await req.ErrorAsync(HttpStatusCode.BadRequest, "Invalid JSON payload");
+        }
+
+        if (payload is null || string.IsNullOrWhiteSpace(payload.CurrentPassword) || string.IsNullOrWhiteSpace(payload.NewPassword))
+        {
+            return await req.ErrorAsync(HttpStatusCode.BadRequest, "Current and new passwords are required");
+        }
+
+        var user = await userRepository.GetPasswordAuthByIdAsync(authContext.UserId, req.FunctionContext.CancellationToken).ConfigureAwait(false);
+        if (user?.PasswordHash is null || user.PasswordSalt is null || user.KeySalt is null)
+        {
+            return await req.ErrorAsync(HttpStatusCode.BadRequest, "Password not set");
+        }
+
+        if (!PasswordHasher.Verify(payload.CurrentPassword, user.PasswordHash, user.PasswordSalt))
+        {
+            return await req.ErrorAsync(HttpStatusCode.Unauthorized, "Invalid current password");
+        }
+
+        var (newHash, newSalt, newKeySalt) = PasswordHasher.HashPassword(payload.NewPassword);
+
+        var (openAiEncrypted, geminiEncrypted) = await userRepository.GetAiKeysEncryptedAsync(user.Id, req.FunctionContext.CancellationToken).ConfigureAwait(false);
+        string? openAiPlain = null;
+        string? geminiPlain = null;
+
+        var oldProtector = new AesGcmSecretProtector(PasswordHasher.DeriveEncryptionKey(user.PasswordHash, user.KeySalt));
+        if (!string.IsNullOrWhiteSpace(openAiEncrypted))
+        {
+            openAiPlain = oldProtector.Decrypt(openAiEncrypted);
+        }
+        if (!string.IsNullOrWhiteSpace(geminiEncrypted))
+        {
+            geminiPlain = oldProtector.Decrypt(geminiEncrypted);
+        }
+
+        var newProtector = new AesGcmSecretProtector(PasswordHasher.DeriveEncryptionKey(newHash, newKeySalt));
+        var newOpenAiEncrypted = string.IsNullOrWhiteSpace(openAiPlain) ? null : newProtector.Encrypt(openAiPlain);
+        var newGeminiEncrypted = string.IsNullOrWhiteSpace(geminiPlain) ? null : newProtector.Encrypt(geminiPlain);
+
+        await userRepository.SetPasswordAsync(user.Id, newHash, newSalt, newKeySalt, req.FunctionContext.CancellationToken).ConfigureAwait(false);
+        await userRepository.SaveAiKeysEncryptedAsync(user.Id, newOpenAiEncrypted, newGeminiEncrypted, false, false, req.FunctionContext.CancellationToken).ConfigureAwait(false);
+
+        return await req.ToJsonAsync(new { status = "ok" }, HttpStatusCode.OK, jsonOptions);
     }
 
     [Function("Auth_Me")]
@@ -142,6 +321,9 @@ public sealed class AuthFunctions
     }
 }
 
-internal sealed record RegisterRequest(string Email, string? DisplayName);
+internal sealed record RegisterRequest(string Email, string? DisplayName, string Password);
+internal sealed record LoginRequest(string Email, string Password);
+internal sealed record InitialPasswordRequest(string Email, string Password);
+internal sealed record ChangePasswordRequest(string CurrentPassword, string NewPassword);
 internal sealed record VerifyMfaRequest(string Code);
 internal sealed record TotpState(string Secret, DateTime CreatedAtUtc, DateTime? VerifiedAtUtc);

@@ -1,7 +1,8 @@
 export type HttpMethod = 'GET' | 'POST' | 'DELETE';
 
-export type RegisteredUser = { id: number; email: string; displayName: string; createdAtUtc: string; mfaEnabled: boolean };
+export type RegisteredUser = { id: number; email: string; displayName: string; createdAtUtc: string; mfaEnabled: boolean; requiresPasswordReset?: boolean };
 export type CurrentUser = { userId: number; email: string; displayName: string; mfaEnabled: boolean };
+export type LoginUser = { id: number; email: string; displayName: string; mfaEnabled: boolean; requiresPasswordReset?: boolean };
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? '/api';
 
@@ -49,8 +50,14 @@ export const ProjectsApi = {
 };
 
 export const AuthApi = {
-  register: (email: string, displayName: string) =>
-    api<RegisteredUser>('/auth/register', 'POST', { email, displayName }, { skipAuth: true }),
+  register: (email: string, displayName: string, password: string) =>
+    api<RegisteredUser>('/auth/register', 'POST', { email, displayName, password }, { skipAuth: true }),
+  login: (email: string, password: string) =>
+    api<LoginUser>('/auth/login', 'POST', { email, password }, { skipAuth: true }),
+  setInitialPassword: (email: string, password: string) =>
+    api<LoginUser>('/auth/password/initial', 'POST', { email, password }, { skipAuth: true }),
+  changePassword: (currentPassword: string, newPassword: string) =>
+    api<any>('/auth/password/change', 'POST', { currentPassword, newPassword }),
   me: () => api<CurrentUser>('/auth/me'),
   startMfa: () => api<{ secret: string; otpauthUrl: string }>('/auth/mfa/start', 'POST'),
   verifyMfa: (code: string) => api<{ mfaEnabled: boolean }>('/auth/mfa/verify', 'POST', { code }),

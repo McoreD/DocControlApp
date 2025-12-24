@@ -15,10 +15,10 @@ public sealed class AiOrchestratorFactory
         this.httpClientFactory = httpClientFactory;
     }
 
-    public async Task<AiOrchestrator?> CreateAsync(long projectId, CancellationToken cancellationToken = default)
+    public async Task<AiOrchestrator?> CreateAsync(long projectId, long userId, CancellationToken cancellationToken = default)
     {
         var settings = await configService.LoadAiSettingsAsync(projectId, cancellationToken).ConfigureAwait(false);
-        var options = await configService.BuildAiOptionsAsync(settings, cancellationToken).ConfigureAwait(false);
+        var options = await configService.BuildAiOptionsAsync(settings, userId, cancellationToken).ConfigureAwait(false);
 
         if (string.IsNullOrWhiteSpace(options.OpenAi.ApiKey) && string.IsNullOrWhiteSpace(options.Gemini.ApiKey))
         {

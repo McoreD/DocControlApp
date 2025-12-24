@@ -21,6 +21,8 @@ export default function Settings() {
   const [geminiKey, setGeminiKey] = useState('');
   const [hasOpenAiKey, setHasOpenAiKey] = useState(false);
   const [hasGeminiKey, setHasGeminiKey] = useState(false);
+  const [clearOpenAiKey, setClearOpenAiKey] = useState(false);
+  const [clearGeminiKey, setClearGeminiKey] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -46,17 +48,21 @@ export default function Settings() {
     setError(null);
     setMessage(null);
     try {
-      await SettingsApi.save(projectId, {
+      const result = await SettingsApi.save(projectId, {
         documentConfig: docConfig,
         aiSettings: ai,
         openAiKey,
         geminiKey,
+        clearOpenAiKey,
+        clearGeminiKey,
       });
       setMessage('Saved');
-      setHasOpenAiKey(!!openAiKey || hasOpenAiKey);
-      setHasGeminiKey(!!geminiKey || hasGeminiKey);
+      setHasOpenAiKey(result?.hasOpenAi ?? (!clearOpenAiKey && (hasOpenAiKey || !!openAiKey)));
+      setHasGeminiKey(result?.hasGemini ?? (!clearGeminiKey && (hasGeminiKey || !!geminiKey)));
       setOpenAiKey('');
       setGeminiKey('');
+      setClearOpenAiKey(false);
+      setClearGeminiKey(false);
     } catch (err: any) {
       setError(err.message ?? 'Failed to save');
     }
@@ -100,11 +106,51 @@ export default function Settings() {
               <label>Gemini Model</label>
               <input value={ai.geminiModel} onChange={(e) => setAi({ ...ai, geminiModel: e.target.value })} />
               <label>OpenAI Key (optional)</label>
-              <input value={openAiKey} onChange={(e) => setOpenAiKey(e.target.value)} placeholder={hasOpenAiKey ? 'Key stored' : undefined} />
-              {hasOpenAiKey && <span className="muted">Key is stored.</span>}
+              <input
+                value={openAiKey}
+                onChange={(e) => {
+                  setOpenAiKey(e.target.value);
+                  setClearOpenAiKey(false);
+                }}
+                placeholder={hasOpenAiKey ? 'Key stored' : undefined}
+              />
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                {hasOpenAiKey && <span className="muted">Key is stored.</span>}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setClearOpenAiKey(true);
+                    setOpenAiKey('');
+                  }}
+                  disabled={!hasOpenAiKey}
+                >
+                  Clear
+                </button>
+              </div>
+              {clearOpenAiKey && <span className="muted">OpenAI key will be cleared on save.</span>}
               <label>Gemini Key (optional)</label>
-              <input value={geminiKey} onChange={(e) => setGeminiKey(e.target.value)} placeholder={hasGeminiKey ? 'Key stored' : undefined} />
-              {hasGeminiKey && <span className="muted">Key is stored.</span>}
+              <input
+                value={geminiKey}
+                onChange={(e) => {
+                  setGeminiKey(e.target.value);
+                  setClearGeminiKey(false);
+                }}
+                placeholder={hasGeminiKey ? 'Key stored' : undefined}
+              />
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                {hasGeminiKey && <span className="muted">Key is stored.</span>}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setClearGeminiKey(true);
+                    setGeminiKey('');
+                  }}
+                  disabled={!hasGeminiKey}
+                >
+                  Clear
+                </button>
+              </div>
+              {clearGeminiKey && <span className="muted">Gemini key will be cleared on save.</span>}
             </div>
           </div>
         </div>

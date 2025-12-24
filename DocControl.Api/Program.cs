@@ -2,14 +2,12 @@ using DocControl.Api.Infrastructure;
 using DocControl.Api.Services;
 using DocControl.Infrastructure.Data;
 using DocControl.Infrastructure.Services;
-using DocControl.Core.Security;
 using DocControl.AI;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Builder;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -47,20 +45,7 @@ builder.Services.AddHostedService<DatabaseMigratorHostedService>();
 
 builder.Services.AddSingleton<ConfigRepository>();
 builder.Services.AddSingleton<ConfigService>();
-builder.Services.AddSingleton<IApiKeyStore>(sp =>
-{
-    var config = sp.GetRequiredService<IConfiguration>();
-    // Use a writable path by default (Function app content root may be read-only).
-    var path = config["ApiKeysPath"];
-    if (string.IsNullOrWhiteSpace(path))
-    {
-        var root = Environment.GetEnvironmentVariable("HOME")
-                   ?? Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData)
-                   ?? Path.GetTempPath();
-        path = Path.Combine(root, "doccontrol", "apikeys.json");
-    }
-    return new JsonFileApiKeyStore(path);
-});
+// Legacy key storage/encryption removed; keys are encrypted with user password-derived keys.
 
 builder.Services.AddSingleton<ProjectRepository>();
 builder.Services.AddSingleton<UserRepository>();

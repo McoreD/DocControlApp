@@ -49,7 +49,7 @@ public sealed class SettingsFunctions
 
         var documentConfig = await configService.LoadDocumentConfigAsync(projectId, req.FunctionContext.CancellationToken).ConfigureAwait(false);
         var aiSettings = await configService.LoadAiSettingsAsync(projectId, req.FunctionContext.CancellationToken).ConfigureAwait(false);
-        var (hasOpenAi, hasGemini) = await configService.GetAiKeyStatusAsync(aiSettings, req.FunctionContext.CancellationToken).ConfigureAwait(false);
+        var (hasOpenAi, hasGemini) = await configService.GetAiKeyStatusAsync(aiSettings, auth.UserId, req.FunctionContext.CancellationToken).ConfigureAwait(false);
 
         return await req.ToJsonAsync(new ProjectSettingsResponse(documentConfig, aiSettings, hasOpenAi, hasGemini), HttpStatusCode.OK, jsonOptions);
     }
@@ -92,13 +92,34 @@ public sealed class SettingsFunctions
         payload.DocumentConfig.LevelCount = 4; // allow Level4 codes without a toggle
 
         await configService.SaveDocumentConfigAsync(projectId, payload.DocumentConfig, req.FunctionContext.CancellationToken).ConfigureAwait(false);
-        await configService.SaveAiSettingsAsync(projectId, payload.AiSettings, payload.OpenAiKey ?? string.Empty, payload.GeminiKey ?? string.Empty, req.FunctionContext.CancellationToken).ConfigureAwait(false);
+        try
+        {
+            await configService.SaveAiSettingsAsync(
+                projectId,
+                auth.UserId,
+                payload.AiSettings,
+                payload.OpenAiKey ?? string.Empty,
+                payload.GeminiKey ?? string.Empty,
+                payload.ClearOpenAiKey,
+                payload.ClearGeminiKey,
+                req.FunctionContext.CancellationToken).ConfigureAwait(false);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return await req.ErrorAsync(HttpStatusCode.BadRequest, ex.Message);
+        }
 
-        var (hasOpenAi, hasGemini) = await configService.GetAiKeyStatusAsync(payload.AiSettings, req.FunctionContext.CancellationToken).ConfigureAwait(false);
+        var (hasOpenAi, hasGemini) = await configService.GetAiKeyStatusAsync(payload.AiSettings, auth.UserId, req.FunctionContext.CancellationToken).ConfigureAwait(false);
         return await req.ToJsonAsync(new { status = "ok", hasOpenAi, hasGemini }, HttpStatusCode.OK, jsonOptions);
     }
 }
 
 public sealed record ProjectSettingsResponse(DocumentConfig DocumentConfig, AiSettings AiSettings, bool HasOpenAiKey, bool HasGeminiKey);
 
-public sealed record SaveProjectSettingsRequest(DocumentConfig DocumentConfig, AiSettings AiSettings, string? OpenAiKey, string? GeminiKey);
+public sealed record SaveProjectSettingsRequest(
+    DocumentConfig DocumentConfig,
+    AiSettings AiSettings,
+    string? OpenAiKey,
+    string? GeminiKey,
+    bool ClearOpenAiKey,
+    bool ClearGeminiKey);

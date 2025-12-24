@@ -22,6 +22,11 @@ public sealed class DatabaseInitializer
             Id BIGSERIAL PRIMARY KEY,
             Email TEXT NOT NULL UNIQUE,
             DisplayName TEXT NOT NULL,
+            OpenAiKeyEncrypted TEXT,
+            GeminiKeyEncrypted TEXT,
+            PasswordHash TEXT,
+            PasswordSalt TEXT,
+            KeySalt TEXT,
             CreatedAtUtc TIMESTAMPTZ NOT NULL DEFAULT now()
         );
 
@@ -71,6 +76,11 @@ public sealed class DatabaseInitializer
 
         -- Ensure plaintext token column exists for owner-side retrieval (hash still used for validation)
         ALTER TABLE ProjectInvites ADD COLUMN IF NOT EXISTS InviteToken TEXT;
+        ALTER TABLE Users ADD COLUMN IF NOT EXISTS OpenAiKeyEncrypted TEXT;
+        ALTER TABLE Users ADD COLUMN IF NOT EXISTS GeminiKeyEncrypted TEXT;
+        ALTER TABLE Users ADD COLUMN IF NOT EXISTS PasswordHash TEXT;
+        ALTER TABLE Users ADD COLUMN IF NOT EXISTS PasswordSalt TEXT;
+        ALTER TABLE Users ADD COLUMN IF NOT EXISTS KeySalt TEXT;
         ALTER TABLE ProjectMembers ADD COLUMN IF NOT EXISTS IsDefault BOOLEAN NOT NULL DEFAULT FALSE;
 
         CREATE UNIQUE INDEX IF NOT EXISTS IX_ProjectMembers_DefaultProject
