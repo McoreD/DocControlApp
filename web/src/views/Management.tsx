@@ -57,8 +57,10 @@ export default function Management() {
     setLoading(true);
     resetStatus();
     try {
-      await CodesApi.importCsv(projectId, text);
-      setMessage('Codes imported from CSV.');
+      const result = await CodesApi.importCsv(projectId, text);
+      const imported = (result?.successCount ?? result?.imported) ?? 0;
+      const errors = result?.errors?.length ?? 0;
+      setMessage(`Imported ${imported} code(s) from CSV${errors ? ` with ${errors} error(s)` : ''}.`);
     } catch (err: any) {
       setError(err.message ?? 'Code import failed');
     } finally {
@@ -74,8 +76,9 @@ export default function Management() {
     resetStatus();
     try {
       const parsed = JSON.parse(text);
-      await CodesApi.importJson(projectId, parsed);
-      setMessage('Codes imported from JSON.');
+      const result = await CodesApi.importJson(projectId, parsed);
+      const imported = result?.imported ?? parsed.length ?? 0;
+      setMessage(`Imported ${imported} code(s) from JSON.`);
     } catch (err: any) {
       setError(err.message ?? 'Code import failed');
     } finally {
@@ -90,7 +93,7 @@ export default function Management() {
     try {
       const data = await CodesApi.exportJson(projectId);
       downloadFile(JSON.stringify(data, null, 2), 'codes.json', 'application/json');
-      setMessage('Codes exported to JSON.');
+      setMessage(`Exported ${data?.length ?? 0} code(s) to JSON.`);
     } catch (err: any) {
       setError(err.message ?? 'Export failed');
     } finally {
@@ -112,7 +115,7 @@ export default function Management() {
       );
       const csv = [headers.join(','), ...rows].join('\n');
       downloadFile(csv, 'codes.csv', 'text/csv');
-      setMessage('Codes exported to CSV.');
+      setMessage(`Exported ${data?.length ?? 0} code(s) to CSV.`);
     } catch (err: any) {
       setError(err.message ?? 'Export failed');
     } finally {
@@ -127,8 +130,10 @@ export default function Management() {
     setLoading(true);
     resetStatus();
     try {
-      await DocumentsApi.importCsv(projectId, text);
-      setMessage('Documents imported from CSV.');
+      const result = await DocumentsApi.importCsv(projectId, text);
+      const imported = result?.imported ?? 0;
+      const errors = result?.errors?.length ?? 0;
+      setMessage(`Imported ${imported} document(s) from CSV${errors ? ` with ${errors} error(s)` : ''}.`);
     } catch (err: any) {
       setError(err.message ?? 'Document import failed');
     } finally {
@@ -144,8 +149,9 @@ export default function Management() {
     resetStatus();
     try {
       const parsed = JSON.parse(text);
-      await DocumentsApi.importJson(projectId, parsed);
-      setMessage('Documents imported from JSON.');
+      const result = await DocumentsApi.importJson(projectId, parsed);
+      const imported = result?.imported ?? (Array.isArray(parsed) ? parsed.length : parsed?.entries?.length ?? 0);
+      setMessage(`Imported ${imported} document(s) from JSON.`);
     } catch (err: any) {
       setError(err.message ?? 'Document import failed');
     } finally {
@@ -160,7 +166,7 @@ export default function Management() {
     try {
       const data = await DocumentsApi.exportJson(projectId);
       downloadFile(JSON.stringify(data, null, 2), 'documents.json', 'application/json');
-      setMessage('Documents exported to JSON.');
+      setMessage(`Exported ${data?.length ?? 0} document(s) to JSON.`);
     } catch (err: any) {
       setError(err.message ?? 'Export failed');
     } finally {
@@ -182,7 +188,7 @@ export default function Management() {
       );
       const csv = [headers.join(','), ...rows].join('\n');
       downloadFile(csv, 'documents.csv', 'text/csv');
-      setMessage('Documents exported to CSV.');
+      setMessage(`Exported ${data?.length ?? 0} document(s) to CSV.`);
     } catch (err: any) {
       setError(err.message ?? 'Export failed');
     } finally {
