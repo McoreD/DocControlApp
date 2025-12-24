@@ -11,6 +11,8 @@ public sealed class ConfigService
     private const string DocumentConfigKey = "DocumentConfig";
     private const string AiSettingsKey = "AiSettings";
     private const string ProjectScope = "Project";
+    private const string OpenAiKeyConfigKey = "OpenAiKey";
+    private const string GeminiKeyConfigKey = "GeminiKey";
 
     private readonly ConfigRepository configRepository;
     private readonly IApiKeyStore apiKeyStore;
@@ -69,8 +71,8 @@ public sealed class ConfigService
 
     public async Task<(bool hasOpenAi, bool hasGemini)> GetAiKeyStatusAsync(AiSettings settings, CancellationToken cancellationToken = default)
     {
-        var openAiKey = await apiKeyStore.GetAsync(settings.OpenAiCredentialName, cancellationToken).ConfigureAwait(false);
-        var geminiKey = await apiKeyStore.GetAsync(settings.GeminiCredentialName, cancellationToken).ConfigureAwait(false);
+        var openAiKey = await GetApiKeyAsync(settings.OpenAiCredentialName, OpenAiKeyConfigKey, cancellationToken).ConfigureAwait(false);
+        var geminiKey = await GetApiKeyAsync(settings.GeminiCredentialName, GeminiKeyConfigKey, cancellationToken).ConfigureAwait(false);
         return (!string.IsNullOrWhiteSpace(openAiKey), !string.IsNullOrWhiteSpace(geminiKey));
     }
 
@@ -82,15 +84,35 @@ public sealed class ConfigService
         if (!string.IsNullOrWhiteSpace(openAiKey))
         {
             await apiKeyStore.SaveAsync(settings.OpenAiCredentialName, openAiKey, cancellationToken).ConfigureAwait(false);
+            await configRepository.SetAsync(ProjectScope, projectId, OpenAiKeyConfigKey, openAiKey, cancellationToken).ConfigureAwait(false);
         }
         if (!string.IsNullOrWhiteSpace(geminiKey))
         {
             await apiKeyStore.SaveAsync(settings.GeminiCredentialName, geminiKey, cancellationToken).ConfigureAwait(false);
+            await configRepository.SetAsync(ProjectScope, projectId, GeminiKeyConfigKey, geminiKey, cancellationToken).ConfigureAwait(false);
         }
     }
 
-    public Task<AiClientOptions> BuildAiOptionsAsync(AiSettings settings, CancellationToken cancellationToken = default)
+    public async Task<AiClientOptions> BuildAiOptionsAsync(AiSettings settings, CancellationToken cancellationToken = default)
     {
-        return AiOptionsBuilder.BuildAsync(settings, apiKeyStore, cancellationToken);
+        ArgumentNullException.ThrowIfNull(settings);
+        var openAiKey = await GetApiKeyAsync(settings.OpenAiCredentialName, OpenAiKeyConfigKey, cancellationToken).ConfigureAwait(false) ?? string.Empty;
+        var geminiKey = await GetApiKeyAsync(settings.GeminiCredentialName, GeminiKeyConfigKey, cancellationToken).ConfigureAwait(false) ?? string.Empty;
+
+        return new AiClientOptions
+        {
+            DefaultProvider = settings.Provider,
+            OpenAi = new OpenAiOptions { ApiKey = openAiKey, Model = settings.OpenAiModel },
+            Gemini = new GeminiOptions { ApiKey = geminiKey, Model = settings.GeminiModel }
+        };
+    }
+
+    private async Task<string?> GetApiKeyAsync(string credentialName, string configKey, CancellationToken cancellationToken)
+    {
+        var fromStore = await apiKeyStore.GetAsync(credentialName, cancellationToken).ConfigureAwait(false);
+        if (!string.IsNullOrWhiteSpace(fromStore)) return fromStore;
+
+        var fromConfig = await configRepository.GetAsync(ProjectScope, null, configKey, cancellationToken).ConfigureAwait(false);
+        return string.IsNullOrWhiteSpace(fromConfig) ? null : fromConfig;
     }
 }

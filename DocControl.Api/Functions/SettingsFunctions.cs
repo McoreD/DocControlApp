@@ -71,12 +71,17 @@ public sealed class SettingsFunctions
         SaveProjectSettingsRequest? payload;
         try
         {
-            payload = await JsonSerializer.DeserializeAsync<SaveProjectSettingsRequest>(req.Body, jsonOptions, req.FunctionContext.CancellationToken);
+            var raw = await new StreamReader(req.Body).ReadToEndAsync();
+            if (string.IsNullOrWhiteSpace(raw))
+            {
+                return await req.ErrorAsync(HttpStatusCode.BadRequest, "Empty payload.");
+            }
+            payload = JsonSerializer.Deserialize<SaveProjectSettingsRequest>(raw, jsonOptions);
         }
         catch (JsonException ex)
         {
             logger.LogWarning(ex, "Invalid settings payload.");
-            return await req.ErrorAsync(HttpStatusCode.BadRequest, "Invalid JSON payload.");
+            return await req.ErrorAsync(HttpStatusCode.BadRequest, $"Invalid JSON payload: {ex.Message}");
         }
 
         if (payload?.DocumentConfig is null || payload.AiSettings is null)
