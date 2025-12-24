@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ProjectsApi } from '../lib/api';
+import { MembersApi, ProjectsApi } from '../lib/api';
 import { useProject } from '../lib/projectContext';
 
 type Project = {
@@ -15,6 +15,13 @@ export default function Projects() {
   const [description, setDescription] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [inviteProjectId, setInviteProjectId] = useState<number | null>(null);
+  const [inviteProjectName, setInviteProjectName] = useState<string | null>(null);
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteRole, setInviteRole] = useState('Viewer');
+  const [inviteMessage, setInviteMessage] = useState<string | null>(null);
+  const [inviteError, setInviteError] = useState<string | null>(null);
+  const [inviteLoading, setInviteLoading] = useState(false);
   const { projectId, setProjectId } = useProject();
 
   const load = async () => {
@@ -87,6 +94,7 @@ export default function Projects() {
                 <th>Description</th>
                 <th>Created</th>
                 <th>Active</th>
+                <th>Share</th>
               </tr>
             </thead>
             <tbody>
@@ -100,12 +108,67 @@ export default function Projects() {
                       {projectId === p.id ? 'Selected' : 'Select'}
                     </button>
                   </td>
+                  <td>
+                    <button
+                      onClick={() => {
+                        setInviteProjectId(p.id);
+                        setInviteProjectName(p.name);
+                        setInviteEmail('');
+                        setInviteRole('Viewer');
+                        setInviteError(null);
+                        setInviteMessage(null);
+                      }}
+                    >
+                      Share
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         )}
       </div>
+
+      {inviteProjectId !== null && (
+        <div className="card" style={{ marginTop: 16 }}>
+          <h3>Share project</h3>
+          <p className="muted">Invite collaborators to <strong>{inviteProjectName}</strong>.</p>
+          <div className="grid" style={{ gridTemplateColumns: '2fr 1fr auto', gap: 8 }}>
+            <input
+              type="email"
+              placeholder="Email"
+              value={inviteEmail}
+              onChange={(e) => setInviteEmail(e.target.value)}
+            />
+            <select value={inviteRole} onChange={(e) => setInviteRole(e.target.value)}>
+              <option value="Viewer">Viewer</option>
+              <option value="Contributor">Contributor</option>
+              <option value="Owner">Owner</option>
+            </select>
+            <button
+              onClick={async () => {
+                if (!inviteProjectId || !inviteEmail.trim()) return;
+                setInviteLoading(true);
+                setInviteError(null);
+                setInviteMessage(null);
+                try {
+                  await MembersApi.invite(inviteProjectId, inviteEmail.trim(), inviteRole);
+                  setInviteMessage('Invite sent.');
+                } catch (err: any) {
+                  setInviteError(err.message ?? 'Failed to send invite');
+                } finally {
+                  setInviteLoading(false);
+                }
+              }}
+              disabled={inviteLoading || !inviteEmail.trim()}
+            >
+              {inviteLoading ? 'Sending...' : 'Send invite'}
+            </button>
+          </div>
+          {inviteError && <div className="pill" style={{ background: '#fee2e2', color: '#991b1b', marginTop: 8 }}>{inviteError}</div>}
+          {inviteMessage && <div className="pill" style={{ background: '#ecfdf3', color: '#166534', marginTop: 8 }}>{inviteMessage}</div>}
+        </div>
+      )}
     </div>
   );
 }
