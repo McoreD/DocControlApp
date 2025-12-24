@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { AiApi, DocumentsApi } from '../lib/api';
+import { useEffect, useState } from 'react';
+import { AiApi, DocumentsApi, ProjectsApi } from '../lib/api';
 import { useProject } from '../lib/projectContext';
 
 export default function Generate() {
@@ -18,7 +18,25 @@ export default function Generate() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [previewLoading, setPreviewLoading] = useState(false);
+  const [levelCount, setLevelCount] = useState(3);
   const { projectId } = useProject();
+
+  useEffect(() => {
+    const load = async () => {
+      if (!projectId) {
+        setLevelCount(3);
+        return;
+      }
+      try {
+        const project = await ProjectsApi.get(projectId);
+        const count = typeof project?.levelCount === 'number' ? project.levelCount : 3;
+        setLevelCount(Math.min(Math.max(count, 1), 6));
+      } catch {
+        setLevelCount(3);
+      }
+    };
+    load();
+  }, [projectId]);
 
   const runRecommend = async () => {
     if (!projectId || !query.trim()) return;
@@ -128,12 +146,24 @@ export default function Generate() {
           <input value={level2} onChange={(e) => setLevel2(e.target.value)} placeholder="GOV" />
           <label>Level3</label>
           <input value={level3} onChange={(e) => setLevel3(e.target.value)} placeholder="REG" />
-          <label>Level4 (optional)</label>
-          <input value={level4} onChange={(e) => setLevel4(e.target.value)} placeholder="SUB" />
-          <label>Level5 (optional)</label>
-          <input value={level5} onChange={(e) => setLevel5(e.target.value)} placeholder="TYPE" />
-          <label>Level6 (optional)</label>
-          <input value={level6} onChange={(e) => setLevel6(e.target.value)} placeholder="ITEM" />
+          {levelCount >= 4 && (
+            <>
+              <label>Level4</label>
+              <input value={level4} onChange={(e) => setLevel4(e.target.value)} placeholder="SUB" />
+            </>
+          )}
+          {levelCount >= 5 && (
+            <>
+              <label>Level5</label>
+              <input value={level5} onChange={(e) => setLevel5(e.target.value)} placeholder="TYPE" />
+            </>
+          )}
+          {levelCount >= 6 && (
+            <>
+              <label>Level6</label>
+              <input value={level6} onChange={(e) => setLevel6(e.target.value)} placeholder="ITEM" />
+            </>
+          )}
           <label>Free text</label>
           <input value={freeText} onChange={(e) => setFreeText(e.target.value)} placeholder="Delpach DocControl" />
           <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
