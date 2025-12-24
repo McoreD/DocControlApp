@@ -115,11 +115,12 @@ public sealed class CodesFunctions
         if (!auth.MfaEnabled) return await req.ErrorAsync(HttpStatusCode.Forbidden, "MFA required");
         if (!await IsAtLeast(projectId, auth.UserId, Roles.Owner, req.FunctionContext.CancellationToken)) return await req.ErrorAsync(HttpStatusCode.Forbidden, "Owner role required");
 
+        var logicalCodes = await codeSeriesRepository.CountDistinctAsync(projectId, req.FunctionContext.CancellationToken).ConfigureAwait(false);
         // Drop documents first to avoid FK violations, then purge code series.
         var deletedDocs = await documentRepository.PurgeAsync(projectId, req.FunctionContext.CancellationToken).ConfigureAwait(false);
         var deletedCodes = await codeSeriesRepository.PurgeAsync(projectId, req.FunctionContext.CancellationToken).ConfigureAwait(false);
         logger.LogInformation("Purged documents {Docs} and codes {Codes} for project {Project}", deletedDocs, deletedCodes, projectId);
-        return await req.ToJsonAsync(new { deletedDocuments = deletedDocs, deletedCodes }, HttpStatusCode.OK, jsonOptions);
+        return await req.ToJsonAsync(new { deletedDocuments = deletedDocs, deletedCodes = logicalCodes }, HttpStatusCode.OK, jsonOptions);
     }
 
     [Function("Codes_ExportJson")]

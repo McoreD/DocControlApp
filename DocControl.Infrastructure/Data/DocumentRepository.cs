@@ -14,6 +14,9 @@ public sealed class DocumentRepository
 
     public async Task<long> InsertAsync(AllocatedNumber allocated, CodeSeriesKey key, string? freeText, string fileName, long createdByUserId, DateTime createdAtUtc, string? originalQuery, CancellationToken cancellationToken = default)
     {
+        var level4 = DbValue.NormalizeLevel(key.Level4);
+        var level5 = DbValue.NormalizeLevel(key.Level5);
+        var level6 = DbValue.NormalizeLevel(key.Level6);
         await using var conn = factory.Create();
         await conn.OpenAsync(cancellationToken).ConfigureAwait(false);
 
@@ -27,9 +30,9 @@ public sealed class DocumentRepository
         cmd.Parameters.AddWithValue("@Level1", key.Level1);
         cmd.Parameters.AddWithValue("@Level2", key.Level2);
         cmd.Parameters.AddWithValue("@Level3", key.Level3);
-        cmd.Parameters.AddWithValue("@Level4", (object?)key.Level4 ?? DBNull.Value);
-        cmd.Parameters.AddWithValue("@Level5", (object?)key.Level5 ?? DBNull.Value);
-        cmd.Parameters.AddWithValue("@Level6", (object?)key.Level6 ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@Level4", level4);
+        cmd.Parameters.AddWithValue("@Level5", level5);
+        cmd.Parameters.AddWithValue("@Level6", level6);
         cmd.Parameters.AddWithValue("@Number", allocated.Number);
         cmd.Parameters.AddWithValue("@FreeText", (object?)freeText ?? DBNull.Value);
         cmd.Parameters.AddWithValue("@FileName", fileName);
@@ -44,6 +47,9 @@ public sealed class DocumentRepository
 
     public async Task<int?> GetMaxNumberAsync(CodeSeriesKey key, CancellationToken cancellationToken = default)
     {
+        var level4 = DbValue.NormalizeLevel(key.Level4);
+        var level5 = DbValue.NormalizeLevel(key.Level5);
+        var level6 = DbValue.NormalizeLevel(key.Level6);
         await using var conn = factory.Create();
         await conn.OpenAsync(cancellationToken).ConfigureAwait(false);
 
@@ -53,9 +59,9 @@ public sealed class DocumentRepository
         cmd.Parameters.AddWithValue("@Level1", key.Level1);
         cmd.Parameters.AddWithValue("@Level2", key.Level2);
         cmd.Parameters.AddWithValue("@Level3", key.Level3);
-        cmd.Parameters.AddWithValue("@Level4", (object?)key.Level4 ?? DBNull.Value);
-        cmd.Parameters.AddWithValue("@Level5", (object?)key.Level5 ?? DBNull.Value);
-        cmd.Parameters.AddWithValue("@Level6", (object?)key.Level6 ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@Level4", level4);
+        cmd.Parameters.AddWithValue("@Level5", level5);
+        cmd.Parameters.AddWithValue("@Level6", level6);
 
         var result = await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
         if (result is DBNull or null) return null;
@@ -64,6 +70,9 @@ public sealed class DocumentRepository
 
     public async Task<bool> ExistsAsync(CodeSeriesKey key, CancellationToken cancellationToken = default)
     {
+        var level4 = DbValue.NormalizeLevel(key.Level4);
+        var level5 = DbValue.NormalizeLevel(key.Level5);
+        var level6 = DbValue.NormalizeLevel(key.Level6);
         await using var conn = factory.Create();
         await conn.OpenAsync(cancellationToken).ConfigureAwait(false);
         const string sql = @"SELECT 1 FROM Documents WHERE ProjectId = @ProjectId AND Level1=@Level1 AND Level2=@Level2 AND Level3=@Level3 AND (Level4 IS NOT DISTINCT FROM @Level4) AND (Level5 IS NOT DISTINCT FROM @Level5) AND (Level6 IS NOT DISTINCT FROM @Level6) LIMIT 1;";
@@ -72,9 +81,9 @@ public sealed class DocumentRepository
         cmd.Parameters.AddWithValue("@Level1", key.Level1);
         cmd.Parameters.AddWithValue("@Level2", key.Level2);
         cmd.Parameters.AddWithValue("@Level3", key.Level3);
-        cmd.Parameters.AddWithValue("@Level4", (object?)key.Level4 ?? DBNull.Value);
-        cmd.Parameters.AddWithValue("@Level5", (object?)key.Level5 ?? DBNull.Value);
-        cmd.Parameters.AddWithValue("@Level6", (object?)key.Level6 ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@Level4", level4);
+        cmd.Parameters.AddWithValue("@Level5", level5);
+        cmd.Parameters.AddWithValue("@Level6", level6);
 
         var result = await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
         return result != null;
@@ -221,6 +230,9 @@ public sealed class DocumentRepository
 
     public async Task UpsertImportedAsync(CodeSeriesKey key, int number, string freeText, string fileName, long createdByUserId, DateTime createdAtUtc, CancellationToken cancellationToken = default)
     {
+        var level4 = DbValue.NormalizeLevel(key.Level4);
+        var level5 = DbValue.NormalizeLevel(key.Level5);
+        var level6 = DbValue.NormalizeLevel(key.Level6);
         await using var conn = factory.Create();
         await conn.OpenAsync(cancellationToken).ConfigureAwait(false);
 
@@ -254,9 +266,9 @@ public sealed class DocumentRepository
         cmd.Parameters.AddWithValue("@Level1", key.Level1);
         cmd.Parameters.AddWithValue("@Level2", key.Level2);
         cmd.Parameters.AddWithValue("@Level3", key.Level3);
-        cmd.Parameters.AddWithValue("@Level4", (object?)key.Level4 ?? DBNull.Value);
-        cmd.Parameters.AddWithValue("@Level5", (object?)key.Level5 ?? DBNull.Value);
-        cmd.Parameters.AddWithValue("@Level6", (object?)key.Level6 ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@Level4", level4);
+        cmd.Parameters.AddWithValue("@Level5", level5);
+        cmd.Parameters.AddWithValue("@Level6", level6);
         cmd.Parameters.AddWithValue("@Number", number);
         cmd.Parameters.AddWithValue("@FreeText", (object?)freeText ?? DBNull.Value);
         cmd.Parameters.AddWithValue("@FileName", fileName);
@@ -274,9 +286,9 @@ public sealed class DocumentRepository
             Level1 = reader.GetString(2),
             Level2 = reader.GetString(3),
             Level3 = reader.GetString(4),
-            Level4 = reader.IsDBNull(5) ? null : reader.GetString(5),
-            Level5 = reader.IsDBNull(6) ? null : reader.GetString(6),
-            Level6 = reader.IsDBNull(7) ? null : reader.GetString(7),
+            Level4 = reader.IsDBNull(5) ? null : DbValue.NormalizeRead(reader.GetString(5)),
+            Level5 = reader.IsDBNull(6) ? null : DbValue.NormalizeRead(reader.GetString(6)),
+            Level6 = reader.IsDBNull(7) ? null : DbValue.NormalizeRead(reader.GetString(7)),
             Number = reader.GetInt32(8),
             FreeText = reader.IsDBNull(9) ? null : reader.GetString(9),
             FileName = reader.GetString(10),

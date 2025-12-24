@@ -14,6 +14,9 @@ public sealed class CodeSeriesRepository
 
     public async Task<long> UpsertAsync(CodeSeriesKey key, string? description, int? nextNumber = null, CancellationToken cancellationToken = default)
     {
+        var level4 = DbValue.NormalizeLevel(key.Level4);
+        var level5 = DbValue.NormalizeLevel(key.Level5);
+        var level6 = DbValue.NormalizeLevel(key.Level6);
         await using var conn = factory.Create();
         await conn.OpenAsync(cancellationToken).ConfigureAwait(false);
 
@@ -35,9 +38,9 @@ public sealed class CodeSeriesRepository
         cmd.Parameters.AddWithValue("@Level1", key.Level1);
         cmd.Parameters.AddWithValue("@Level2", key.Level2);
         cmd.Parameters.AddWithValue("@Level3", key.Level3);
-        cmd.Parameters.AddWithValue("@Level4", (object?)key.Level4 ?? DBNull.Value);
-        cmd.Parameters.AddWithValue("@Level5", (object?)key.Level5 ?? DBNull.Value);
-        cmd.Parameters.AddWithValue("@Level6", (object?)key.Level6 ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@Level4", level4);
+        cmd.Parameters.AddWithValue("@Level5", level5);
+        cmd.Parameters.AddWithValue("@Level6", level6);
         cmd.Parameters.AddWithValue("@Description", (object?)description ?? DBNull.Value);
         cmd.Parameters.AddWithValue("@NextNumber", (object?)nextNumber ?? DBNull.Value);
 
@@ -53,6 +56,9 @@ public sealed class CodeSeriesRepository
 
         foreach (var (key, description, max) in seriesMax)
         {
+            var level4 = DbValue.NormalizeLevel(key.Level4);
+            var level5 = DbValue.NormalizeLevel(key.Level5);
+            var level6 = DbValue.NormalizeLevel(key.Level6);
             const string upsert = @"
                 INSERT INTO CodeSeries (ProjectId, Level1, Level2, Level3, Level4, Level5, Level6, Description, NextNumber)
                 VALUES (@ProjectId, @Level1, @Level2, @Level3, @Level4, @Level5, @Level6, @Description, @NextNumber)
@@ -66,9 +72,9 @@ public sealed class CodeSeriesRepository
             cmd.Parameters.AddWithValue("@Level1", key.Level1);
             cmd.Parameters.AddWithValue("@Level2", key.Level2);
             cmd.Parameters.AddWithValue("@Level3", key.Level3);
-            cmd.Parameters.AddWithValue("@Level4", (object?)key.Level4 ?? DBNull.Value);
-            cmd.Parameters.AddWithValue("@Level5", (object?)key.Level5 ?? DBNull.Value);
-            cmd.Parameters.AddWithValue("@Level6", (object?)key.Level6 ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("@Level4", level4);
+            cmd.Parameters.AddWithValue("@Level5", level5);
+            cmd.Parameters.AddWithValue("@Level6", level6);
             cmd.Parameters.AddWithValue("@Description", (object?)description ?? DBNull.Value);
             cmd.Parameters.AddWithValue("@NextNumber", max + 1);
             await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
@@ -98,9 +104,9 @@ public sealed class CodeSeriesRepository
                 Level1 = reader.GetString(2),
                 Level2 = reader.GetString(3),
                 Level3 = reader.GetString(4),
-                Level4 = reader.IsDBNull(5) ? null : reader.GetString(5),
-                Level5 = reader.IsDBNull(6) ? null : reader.GetString(6),
-                Level6 = reader.IsDBNull(7) ? null : reader.GetString(7)
+                Level4 = reader.IsDBNull(5) ? null : DbValue.NormalizeRead(reader.GetString(5)),
+                Level5 = reader.IsDBNull(6) ? null : DbValue.NormalizeRead(reader.GetString(6)),
+                Level6 = reader.IsDBNull(7) ? null : DbValue.NormalizeRead(reader.GetString(7))
             };
             list.Add(new CodeSeriesRecord
             {
@@ -177,5 +183,20 @@ public sealed class CodeSeriesRepository
         cmd.Parameters.AddWithValue("@ProjectId", projectId);
         var affected = await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
         return affected;
+    }
+
+    public async Task<int> CountDistinctAsync(long projectId, CancellationToken cancellationToken = default)
+    {
+        await using var conn = factory.Create();
+        await conn.OpenAsync(cancellationToken).ConfigureAwait(false);
+
+        const string sql = @"
+            SELECT COUNT(DISTINCT (Level1, Level2, Level3, Level4, Level5, Level6))
+            FROM CodeSeries
+            WHERE ProjectId = @ProjectId;";
+        await using var cmd = new NpgsqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("@ProjectId", projectId);
+        var result = await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
+        return Convert.ToInt32(result ?? 0);
     }
 }

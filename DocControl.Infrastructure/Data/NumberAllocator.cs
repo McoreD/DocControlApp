@@ -15,6 +15,9 @@ public sealed class NumberAllocator
 
     public async Task<AllocatedNumber> AllocateAsync(CodeSeriesKey key, CancellationToken cancellationToken = default)
     {
+        var level4 = DbValue.NormalizeLevel(key.Level4);
+        var level5 = DbValue.NormalizeLevel(key.Level5);
+        var level6 = DbValue.NormalizeLevel(key.Level6);
         await using var conn = factory.Create();
         await conn.OpenAsync(cancellationToken).ConfigureAwait(false);
 
@@ -31,9 +34,9 @@ public sealed class NumberAllocator
             ensureCmd.Parameters.AddWithValue("@Level1", key.Level1);
             ensureCmd.Parameters.AddWithValue("@Level2", key.Level2);
             ensureCmd.Parameters.AddWithValue("@Level3", key.Level3);
-            ensureCmd.Parameters.AddWithValue("@Level4", (object?)key.Level4 ?? DBNull.Value);
-            ensureCmd.Parameters.AddWithValue("@Level5", (object?)key.Level5 ?? DBNull.Value);
-            ensureCmd.Parameters.AddWithValue("@Level6", (object?)key.Level6 ?? DBNull.Value);
+            ensureCmd.Parameters.AddWithValue("@Level4", level4);
+            ensureCmd.Parameters.AddWithValue("@Level5", level5);
+            ensureCmd.Parameters.AddWithValue("@Level6", level6);
             await ensureCmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
         }
 
@@ -48,9 +51,9 @@ public sealed class NumberAllocator
             maxCmd.Parameters.AddWithValue("@Level1", key.Level1);
             maxCmd.Parameters.AddWithValue("@Level2", key.Level2);
             maxCmd.Parameters.AddWithValue("@Level3", key.Level3);
-            maxCmd.Parameters.AddWithValue("@Level4", (object?)key.Level4 ?? DBNull.Value);
-            maxCmd.Parameters.AddWithValue("@Level5", (object?)key.Level5 ?? DBNull.Value);
-            maxCmd.Parameters.AddWithValue("@Level6", (object?)key.Level6 ?? DBNull.Value);
+            maxCmd.Parameters.AddWithValue("@Level4", level4);
+            maxCmd.Parameters.AddWithValue("@Level5", level5);
+            maxCmd.Parameters.AddWithValue("@Level6", level6);
             var maxDocResult = await maxCmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
             if (maxDocResult is not DBNull and not null)
             {
@@ -72,9 +75,9 @@ public sealed class NumberAllocator
             selectCmd.Parameters.AddWithValue("@Level1", key.Level1);
             selectCmd.Parameters.AddWithValue("@Level2", key.Level2);
             selectCmd.Parameters.AddWithValue("@Level3", key.Level3);
-            selectCmd.Parameters.AddWithValue("@Level4", (object?)key.Level4 ?? DBNull.Value);
-            selectCmd.Parameters.AddWithValue("@Level5", (object?)key.Level5 ?? DBNull.Value);
-            selectCmd.Parameters.AddWithValue("@Level6", (object?)key.Level6 ?? DBNull.Value);
+            selectCmd.Parameters.AddWithValue("@Level4", level4);
+            selectCmd.Parameters.AddWithValue("@Level5", level5);
+            selectCmd.Parameters.AddWithValue("@Level6", level6);
 
             await using var reader = await selectCmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
             if (!await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
@@ -102,6 +105,9 @@ public sealed class NumberAllocator
 
     public async Task<int> PeekNextAsync(CodeSeriesKey key, CancellationToken cancellationToken = default)
     {
+        var level4 = DbValue.NormalizeLevel(key.Level4);
+        var level5 = DbValue.NormalizeLevel(key.Level5);
+        var level6 = DbValue.NormalizeLevel(key.Level6);
         await using var conn = factory.Create();
         await conn.OpenAsync(cancellationToken).ConfigureAwait(false);
         await using var tx = await conn.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken).ConfigureAwait(false);
@@ -117,9 +123,9 @@ public sealed class NumberAllocator
             ensureCmd.Parameters.AddWithValue("@Level1", key.Level1);
             ensureCmd.Parameters.AddWithValue("@Level2", key.Level2);
             ensureCmd.Parameters.AddWithValue("@Level3", key.Level3);
-            ensureCmd.Parameters.AddWithValue("@Level4", (object?)key.Level4 ?? DBNull.Value);
-            ensureCmd.Parameters.AddWithValue("@Level5", (object?)key.Level5 ?? DBNull.Value);
-            ensureCmd.Parameters.AddWithValue("@Level6", (object?)key.Level6 ?? DBNull.Value);
+            ensureCmd.Parameters.AddWithValue("@Level4", level4);
+            ensureCmd.Parameters.AddWithValue("@Level5", level5);
+            ensureCmd.Parameters.AddWithValue("@Level6", level6);
             await ensureCmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
         }
 
@@ -134,9 +140,9 @@ public sealed class NumberAllocator
             maxCmd.Parameters.AddWithValue("@Level1", key.Level1);
             maxCmd.Parameters.AddWithValue("@Level2", key.Level2);
             maxCmd.Parameters.AddWithValue("@Level3", key.Level3);
-            maxCmd.Parameters.AddWithValue("@Level4", (object?)key.Level4 ?? DBNull.Value);
-            maxCmd.Parameters.AddWithValue("@Level5", (object?)key.Level5 ?? DBNull.Value);
-            maxCmd.Parameters.AddWithValue("@Level6", (object?)key.Level6 ?? DBNull.Value);
+            maxCmd.Parameters.AddWithValue("@Level4", level4);
+            maxCmd.Parameters.AddWithValue("@Level5", level5);
+            maxCmd.Parameters.AddWithValue("@Level6", level6);
             var maxDocResult = await maxCmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
             if (maxDocResult is not DBNull and not null)
             {
@@ -157,9 +163,9 @@ public sealed class NumberAllocator
             selectCmd.Parameters.AddWithValue("@Level1", key.Level1);
             selectCmd.Parameters.AddWithValue("@Level2", key.Level2);
             selectCmd.Parameters.AddWithValue("@Level3", key.Level3);
-            selectCmd.Parameters.AddWithValue("@Level4", (object?)key.Level4 ?? DBNull.Value);
-            selectCmd.Parameters.AddWithValue("@Level5", (object?)key.Level5 ?? DBNull.Value);
-            selectCmd.Parameters.AddWithValue("@Level6", (object?)key.Level6 ?? DBNull.Value);
+            selectCmd.Parameters.AddWithValue("@Level4", level4);
+            selectCmd.Parameters.AddWithValue("@Level5", level5);
+            selectCmd.Parameters.AddWithValue("@Level6", level6);
 
             await using var reader = await selectCmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
             if (!await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
