@@ -8,4 +8,5 @@ public sealed class ProjectRecord
     public long CreatedByUserId { get; set; }
     public DateTime CreatedAtUtc { get; set; }
     public bool IsArchived { get; set; }
+    public bool IsDefault { get; set; }
 }

@@ -7,6 +7,7 @@ type Project = {
   name: string;
   description: string;
   createdAtUtc: string;
+  isDefault: boolean;
 };
 
 export default function Projects() {
@@ -24,7 +25,7 @@ export default function Projects() {
   const [inviteLoading, setInviteLoading] = useState(false);
   const [inviteLink, setInviteLink] = useState<string | null>(null);
   const [inviteToken, setInviteToken] = useState<string | null>(null);
-  const { projectId, setProjectId } = useProject();
+  const { projectId, setProjectId, defaultProjectId, setDefaultProjectId } = useProject();
 
   const load = async () => {
     setError(null);
@@ -62,29 +63,8 @@ export default function Projects() {
   return (
     <div className="page">
       <h1>Projects</h1>
-      <p className="muted">Create and manage projects you can access.</p>
 
-      <div className="grid" style={{ marginTop: 12 }}>
-        <div className="card">
-          <div className="stack">
-            <label>Project name</label>
-            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Project name" />
-            <label>Description</label>
-            <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="What is this project about?"
-              rows={3}
-            />
-            <button onClick={create} disabled={loading}>
-              {loading ? 'Working...' : 'Create project'}
-            </button>
-            {error && <div className="pill" style={{ background: '#fee2e2', color: '#991b1b' }}>{error}</div>}
-          </div>
-        </div>
-      </div>
-
-      <div className="card" style={{ marginTop: 16 }}>
+      <div className="card" style={{ marginTop: 12 }}>
         <h3>Accessible Projects</h3>
         {loading && projects.length === 0 ? <p className="muted">Loading...</p> : null}
         {projects.length === 0 && !loading ? <p className="muted">No projects yet.</p> : null}
@@ -96,6 +76,7 @@ export default function Projects() {
                 <th>Description</th>
                 <th>Created</th>
                 <th>Active</th>
+                <th>Default</th>
                 <th>Share</th>
               </tr>
             </thead>
@@ -108,6 +89,21 @@ export default function Projects() {
                   <td>
                     <button onClick={() => setProjectId(p.id, p.name)} disabled={projectId === p.id}>
                       {projectId === p.id ? 'Selected' : 'Select'}
+                    </button>
+                  </td>
+                  <td>
+                    <button
+                      onClick={async () => {
+                        try {
+                          await setDefaultProjectId(p.id, p.name);
+                          setProjects((prev) => prev.map((project) => ({ ...project, isDefault: project.id === p.id })));
+                        } catch (err: any) {
+                          setError(err.message ?? 'Failed to set default project');
+                        }
+                      }}
+                      disabled={defaultProjectId === p.id || p.isDefault}
+                    >
+                      {defaultProjectId === p.id || p.isDefault ? 'Default' : 'Set default'}
                     </button>
                   </td>
                   <td>
@@ -131,6 +127,28 @@ export default function Projects() {
             </tbody>
           </table>
         )}
+      </div>
+
+      <h3 style={{ marginTop: 16 }}>Create a project</h3>
+      <p className="muted">Create and manage projects you can access.</p>
+      <div className="grid" style={{ marginTop: 12 }}>
+        <div className="card">
+          <div className="stack">
+            <label>Project name</label>
+            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Project name" />
+            <label>Description</label>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="What is this project about?"
+              rows={3}
+            />
+            <button onClick={create} disabled={loading}>
+              {loading ? 'Working...' : 'Create project'}
+            </button>
+            {error && <div className="pill" style={{ background: '#fee2e2', color: '#991b1b' }}>{error}</div>}
+          </div>
+        </div>
       </div>
 
       {inviteProjectId !== null && (

@@ -48,6 +48,7 @@ public sealed class DatabaseInitializer
             ProjectId BIGINT NOT NULL REFERENCES Projects(Id) ON DELETE CASCADE,
             UserId BIGINT NOT NULL REFERENCES Users(Id) ON DELETE CASCADE,
             Role TEXT NOT NULL,
+            IsDefault BOOLEAN NOT NULL DEFAULT FALSE,
             AddedByUserId BIGINT NOT NULL REFERENCES Users(Id),
             AddedAtUtc TIMESTAMPTZ NOT NULL DEFAULT now(),
             UNIQUE(ProjectId, UserId)
@@ -70,6 +71,11 @@ public sealed class DatabaseInitializer
 
         -- Ensure plaintext token column exists for owner-side retrieval (hash still used for validation)
         ALTER TABLE ProjectInvites ADD COLUMN IF NOT EXISTS InviteToken TEXT;
+        ALTER TABLE ProjectMembers ADD COLUMN IF NOT EXISTS IsDefault BOOLEAN NOT NULL DEFAULT FALSE;
+
+        CREATE UNIQUE INDEX IF NOT EXISTS IX_ProjectMembers_DefaultProject
+            ON ProjectMembers(UserId)
+            WHERE IsDefault = TRUE;
 
         CREATE TABLE IF NOT EXISTS Config (
             Id BIGSERIAL PRIMARY KEY,

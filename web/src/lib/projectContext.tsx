@@ -1,17 +1,33 @@
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { ProjectsApi } from './api';
+import { useAuth } from './authContext';
 
 type ProjectContextValue = {
   projectId: number | null;
   projectName: string | null;
+  defaultProjectId: number | null;
   setProjectId: (id: number | null, name?: string | null) => void;
+  setDefaultProjectId: (id: number, name?: string | null) => Promise<void>;
 };
 
 const ProjectContext = createContext<ProjectContextValue | undefined>(undefined);
 
 export function ProjectProvider({ children }: { children: React.ReactNode }) {
+  const { user, ready } = useAuth();
   const [projectId, setProjectIdState] = useState<number | null>(null);
   const [projectName, setProjectNameState] = useState<string | null>(null);
+  const [defaultProjectId, setDefaultProjectIdState] = useState<number | null>(null);
+  const defaultLoadedForUser = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (!user) {
+      setDefaultProjectIdState(null);
+      defaultLoadedForUser.current = null;
+      return;
+    }
+    setDefaultProjectIdState(null);
+    defaultLoadedForUser.current = null;
+  }, [user?.id]);
 
   useEffect(() => {
     const stored = localStorage.getItem('dc.projectId');
@@ -24,6 +40,34 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       setProjectNameState(storedName);
     }
   }, []);
+
+  useEffect(() => {
+    if (!ready || !user) return;
+    if (defaultLoadedForUser.current === user.id) return;
+    defaultLoadedForUser.current = user.id;
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const projects = await ProjectsApi.list();
+        if (cancelled) return;
+        const defaultProject = projects.find((p) => p.isDefault);
+        const nextDefaultId = defaultProject?.id ?? null;
+        setDefaultProjectIdState(nextDefaultId);
+        if (nextDefaultId && projectId !== nextDefaultId) {
+          setProjectId(nextDefaultId, defaultProject?.name ?? null);
+        }
+      } catch {
+        if (!cancelled) {
+          setDefaultProjectIdState(null);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [projectId, ready, user]);
 
   // Refresh the project name from the API when we have an id but no friendly name.
   useEffect(() => {
@@ -70,7 +114,19 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  return <ProjectContext.Provider value={{ projectId, projectName, setProjectId }}>{children}</ProjectContext.Provider>;
+  const setDefaultProjectId = async (id: number, name?: string | null) => {
+    await ProjectsApi.setDefault(id);
+    setDefaultProjectIdState(id);
+    if (!projectId) {
+      setProjectId(id, name ?? null);
+    }
+  };
+
+  return (
+    <ProjectContext.Provider value={{ projectId, projectName, defaultProjectId, setProjectId, setDefaultProjectId }}>
+      {children}
+    </ProjectContext.Provider>
+  );
 }
 
 export function useProject() {

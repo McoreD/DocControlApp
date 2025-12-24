@@ -55,7 +55,7 @@ public sealed class ProjectRepository
         await conn.OpenAsync(cancellationToken).ConfigureAwait(false);
 
         const string sql = @"
-            SELECT p.Id, p.Name, p.Description, p.CreatedByUserId, p.CreatedAtUtc, p.IsArchived
+            SELECT p.Id, p.Name, p.Description, p.CreatedByUserId, p.CreatedAtUtc, p.IsArchived, pm.IsDefault
             FROM Projects p
             JOIN ProjectMembers pm ON pm.ProjectId = p.Id
             WHERE pm.UserId = @userId AND p.IsArchived = FALSE
@@ -78,7 +78,7 @@ public sealed class ProjectRepository
         await conn.OpenAsync(cancellationToken).ConfigureAwait(false);
 
         const string sql = @"
-            SELECT p.Id, p.Name, p.Description, p.CreatedByUserId, p.CreatedAtUtc, p.IsArchived
+            SELECT p.Id, p.Name, p.Description, p.CreatedByUserId, p.CreatedAtUtc, p.IsArchived, pm.IsDefault
             FROM Projects p
             JOIN ProjectMembers pm ON pm.ProjectId = p.Id
             WHERE p.Id = @projectId AND pm.UserId = @userId;";
@@ -115,6 +115,7 @@ public sealed class ProjectRepository
             Description = reader.GetString(2),
             CreatedByUserId = reader.GetInt64(3),
             CreatedAtUtc = reader.GetDateTime(4),
-            IsArchived = reader.GetBoolean(5)
+            IsArchived = reader.GetBoolean(5),
+            IsDefault = reader.GetBoolean(6)
         };
 }

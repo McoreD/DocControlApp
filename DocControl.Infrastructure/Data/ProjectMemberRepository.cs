@@ -83,6 +83,44 @@ public sealed class ProjectMemberRepository
         cmd.Parameters.AddWithValue("@userId", userId);
         await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
+
+    public async Task<bool> SetDefaultProjectAsync(long userId, long projectId, CancellationToken cancellationToken = default)
+    {
+        await using var conn = factory.Create();
+        await conn.OpenAsync(cancellationToken).ConfigureAwait(false);
+        await using var tx = await conn.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
+
+        const string checkSql = "SELECT 1 FROM ProjectMembers WHERE ProjectId = @projectId AND UserId = @userId LIMIT 1;";
+        await using (var checkCmd = new NpgsqlCommand(checkSql, conn, (NpgsqlTransaction)tx))
+        {
+            checkCmd.Parameters.AddWithValue("@projectId", projectId);
+            checkCmd.Parameters.AddWithValue("@userId", userId);
+            var exists = await checkCmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
+            if (exists is null)
+            {
+                await tx.RollbackAsync(cancellationToken).ConfigureAwait(false);
+                return false;
+            }
+        }
+
+        const string clearSql = "UPDATE ProjectMembers SET IsDefault = FALSE WHERE UserId = @userId AND IsDefault = TRUE;";
+        await using (var clearCmd = new NpgsqlCommand(clearSql, conn, (NpgsqlTransaction)tx))
+        {
+            clearCmd.Parameters.AddWithValue("@userId", userId);
+            await clearCmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        const string setSql = "UPDATE ProjectMembers SET IsDefault = TRUE WHERE ProjectId = @projectId AND UserId = @userId;";
+        await using (var setCmd = new NpgsqlCommand(setSql, conn, (NpgsqlTransaction)tx))
+        {
+            setCmd.Parameters.AddWithValue("@projectId", projectId);
+            setCmd.Parameters.AddWithValue("@userId", userId);
+            await setCmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        await tx.CommitAsync(cancellationToken).ConfigureAwait(false);
+        return true;
+    }
 }
 
 public sealed class ProjectInviteRepository

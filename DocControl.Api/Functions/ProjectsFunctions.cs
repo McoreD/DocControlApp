@@ -14,13 +14,20 @@ public sealed class ProjectsFunctions
 {
     private readonly AuthContextFactory authFactory;
     private readonly ProjectRepository projectRepository;
+    private readonly ProjectMemberRepository memberRepository;
     private readonly JsonSerializerOptions jsonOptions;
     private readonly ILogger<ProjectsFunctions> logger;
 
-    public ProjectsFunctions(AuthContextFactory authFactory, ProjectRepository projectRepository, IOptions<JsonSerializerOptions> jsonOptions, ILogger<ProjectsFunctions> logger)
+    public ProjectsFunctions(
+        AuthContextFactory authFactory,
+        ProjectRepository projectRepository,
+        ProjectMemberRepository memberRepository,
+        IOptions<JsonSerializerOptions> jsonOptions,
+        ILogger<ProjectsFunctions> logger)
     {
         this.authFactory = authFactory;
         this.projectRepository = projectRepository;
+        this.memberRepository = memberRepository;
         this.jsonOptions = jsonOptions.Value;
         this.logger = logger;
     }
@@ -87,9 +94,28 @@ public sealed class ProjectsFunctions
             Description = payload.Description ?? string.Empty,
             CreatedByUserId = auth.UserId,
             CreatedAtUtc = DateTime.UtcNow,
-            IsArchived = false
+            IsArchived = false,
+            IsDefault = false
         };
         return await req.ToJsonAsync(created, HttpStatusCode.Created, jsonOptions);
+    }
+
+    [Function("Projects_SetDefault")]
+    public async Task<HttpResponseData> SetDefaultAsync(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "projects/{projectId:long}/default")] HttpRequestData req,
+        long projectId)
+    {
+        var (ok, auth, _) = await authFactory.BindAsync(req, req.FunctionContext.CancellationToken);
+        if (!ok || auth is null) return await req.ErrorAsync(HttpStatusCode.Unauthorized, "Auth required");
+        if (!auth.MfaEnabled) return await req.ErrorAsync(HttpStatusCode.Forbidden, "MFA required");
+
+        var updated = await memberRepository.SetDefaultProjectAsync(auth.UserId, projectId, req.FunctionContext.CancellationToken);
+        if (!updated)
+        {
+            return await req.ErrorAsync(HttpStatusCode.NotFound, "Project not found or access denied.");
+        }
+
+        return await req.ToJsonAsync(new { projectId }, HttpStatusCode.OK, jsonOptions);
     }
 
     private sealed record CreateProjectRequest(string Name, string? Description);

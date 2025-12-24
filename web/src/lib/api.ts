@@ -45,6 +45,7 @@ export const ProjectsApi = {
   list: () => api<any[]>('/projects'),
   create: (name: string, description: string) => api<any>('/projects', 'POST', { name, description }),
   get: (projectId: number) => api<any>(`/projects/${projectId}`),
+  setDefault: (projectId: number) => api<any>(`/projects/${projectId}/default`, 'POST'),
 };
 
 export const AuthApi = {
