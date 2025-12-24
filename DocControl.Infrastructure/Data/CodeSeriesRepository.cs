@@ -22,7 +22,7 @@ public sealed class CodeSeriesRepository
             VALUES (@ProjectId, @Level1, @Level2, @Level3, @Level4, @Description, COALESCE(@NextNumber, 1))
             ON CONFLICT(ProjectId, Level1, Level2, Level3, Level4)
             DO UPDATE SET
-                Description = COALESCE(EXCLUDED.Description, CodeSeries.Description),
+                Description = CASE WHEN EXCLUDED.Description IS NULL OR EXCLUDED.Description = '' THEN CodeSeries.Description ELSE EXCLUDED.Description END,
                 NextNumber = COALESCE(@NextNumber, CodeSeries.NextNumber)
             RETURNING Id;";
 
@@ -52,7 +52,7 @@ public sealed class CodeSeriesRepository
                 VALUES (@ProjectId, @Level1, @Level2, @Level3, @Level4, @Description, @NextNumber)
                 ON CONFLICT(ProjectId, Level1, Level2, Level3, Level4)
                 DO UPDATE SET 
-                    Description = COALESCE(EXCLUDED.Description, CodeSeries.Description),
+                    Description = CASE WHEN EXCLUDED.Description IS NULL OR EXCLUDED.Description = '' THEN CodeSeries.Description ELSE EXCLUDED.Description END,
                     NextNumber = CASE WHEN EXCLUDED.NextNumber > CodeSeries.NextNumber THEN EXCLUDED.NextNumber ELSE CodeSeries.NextNumber END;
             ";
             await using var cmd = new NpgsqlCommand(upsert, conn, (NpgsqlTransaction)tx);
@@ -112,11 +112,19 @@ public sealed class CodeSeriesRepository
             }
 
             // Merge duplicates: keep earliest, but preserve max next number and any description.
+            var mergedDescription = !string.IsNullOrWhiteSpace(existing.Description)
+                ? existing.Description
+                : item.Description;
+            if (string.IsNullOrWhiteSpace(mergedDescription))
+            {
+                mergedDescription = !string.IsNullOrWhiteSpace(item.Description) ? item.Description : existing.Description;
+            }
+
             var merged = new CodeSeriesRecord
             {
                 Id = existing.Id,
                 Key = existing.Key,
-                Description = existing.Description ?? item.Description,
+                Description = mergedDescription,
                 NextNumber = Math.Max(existing.NextNumber, item.NextNumber)
             };
             dedup[dedupKey] = merged;
