@@ -273,20 +273,21 @@ public sealed class ImportsFunctions
         reason = string.Empty;
 
         var parts = code.Split(config.Separator, StringSplitOptions.RemoveEmptyEntries);
-        if (config.EnableLevel4)
+        if (parts.Length == 5)
         {
-            if (parts.Length != 5) { reason = "Expected Level1-4 and number"; return false; }
             if (!int.TryParse(parts[4], out number)) { reason = "Number not numeric"; return false; }
             key = new CodeSeriesKey { ProjectId = 0, Level1 = parts[0], Level2 = parts[1], Level3 = parts[2], Level4 = parts[3] };
             return true;
         }
-        else
+        if (parts.Length == 4)
         {
-            if (parts.Length != 4) { reason = "Expected Level1-3 and number"; return false; }
             if (!int.TryParse(parts[3], out number)) { reason = "Number not numeric"; return false; }
             key = new CodeSeriesKey { ProjectId = 0, Level1 = parts[0], Level2 = parts[1], Level3 = parts[2], Level4 = null };
             return true;
         }
+
+        reason = "Expected Level1-3 or Level1-4 and number";
+        return false;
     }
 
     private async Task<bool> IsAtLeast(long projectId, long userId, string requiredRole, CancellationToken cancellationToken)

@@ -5,7 +5,6 @@ import { useProject } from '../lib/projectContext';
 type DocumentConfig = {
   separator: string;
   paddingLength: number;
-  enableLevel4: boolean;
 };
 
 type AiSettings = {
@@ -16,7 +15,7 @@ type AiSettings = {
 
 export default function Settings() {
   const { projectId } = useProject();
-  const [docConfig, setDocConfig] = useState<DocumentConfig>({ separator: '-', paddingLength: 3, enableLevel4: false });
+  const [docConfig, setDocConfig] = useState<DocumentConfig>({ separator: '-', paddingLength: 3 });
   const [ai, setAi] = useState<AiSettings>({ provider: 'OpenAi', openAiModel: 'gpt-4.1', geminiModel: 'gemini-3-flash-preview' });
   const [openAiKey, setOpenAiKey] = useState('');
   const [geminiKey, setGeminiKey] = useState('');
@@ -78,14 +77,6 @@ export default function Settings() {
                 value={docConfig.paddingLength}
                 onChange={(e) => setDocConfig({ ...docConfig, paddingLength: Number(e.target.value) })}
               />
-              <label>
-                <input
-                  type="checkbox"
-                  checked={docConfig.enableLevel4}
-                  onChange={(e) => setDocConfig({ ...docConfig, enableLevel4: e.target.checked })}
-                />{' '}
-                Enable Level 4
-              </label>
             </div>
           </div>
           <div className="card">

@@ -83,7 +83,7 @@ public sealed class SettingsFunctions
             return await req.ErrorAsync(HttpStatusCode.BadRequest, "DocumentConfig and AiSettings are required.");
         }
 
-        payload.DocumentConfig.LevelCount = payload.DocumentConfig.EnableLevel4 ? 4 : 3;
+        payload.DocumentConfig.LevelCount = 4; // allow Level4 codes without a toggle
 
         await configService.SaveDocumentConfigAsync(projectId, payload.DocumentConfig, req.FunctionContext.CancellationToken).ConfigureAwait(false);
         await configService.SaveAiSettingsAsync(projectId, payload.AiSettings, payload.OpenAiKey ?? string.Empty, payload.GeminiKey ?? string.Empty, req.FunctionContext.CancellationToken).ConfigureAwait(false);

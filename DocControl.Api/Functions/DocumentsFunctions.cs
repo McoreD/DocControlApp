@@ -130,11 +130,6 @@ public sealed class DocumentsFunctions
         }
 
         var config = await configService.LoadDocumentConfigAsync(projectId, req.FunctionContext.CancellationToken).ConfigureAwait(false);
-        if (config.EnableLevel4 && string.IsNullOrWhiteSpace(payload.Level4))
-        {
-            return await req.ErrorAsync(HttpStatusCode.BadRequest, "Level4 is required for this project");
-        }
-
         var key = new CodeSeriesKey
         {
             ProjectId = projectId,
