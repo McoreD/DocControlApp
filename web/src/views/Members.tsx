@@ -150,6 +150,24 @@ export default function Members() {
                       <td>
                         <button
                           onClick={async () => {
+                            if (!p.token) {
+                              setError('No invite token available to copy.');
+                              return;
+                            }
+                            try {
+                              const url = `${window.location.origin}/members?inviteToken=${encodeURIComponent(p.token)}`;
+                              await navigator.clipboard.writeText(url);
+                              setMessage('Invite link copied.');
+                            } catch {
+                              setError('Failed to copy invite link.');
+                            }
+                          }}
+                          style={{ marginRight: 8 }}
+                        >
+                          Copy link
+                        </button>
+                        <button
+                          onClick={async () => {
                             if (!projectId) return;
                             setError(null);
                             setMessage(null);

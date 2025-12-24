@@ -59,6 +59,7 @@ public sealed class DatabaseInitializer
             InvitedEmail TEXT NOT NULL,
             Role TEXT NOT NULL,
             InviteTokenHash TEXT NOT NULL,
+            InviteToken TEXT,
             ExpiresAtUtc TIMESTAMPTZ NOT NULL,
             CreatedByUserId BIGINT NOT NULL REFERENCES Users(Id),
             CreatedAtUtc TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -66,6 +67,9 @@ public sealed class DatabaseInitializer
             AcceptedAtUtc TIMESTAMPTZ,
             UNIQUE(ProjectId, InvitedEmail, Role)
         );
+
+        -- Ensure plaintext token column exists for owner-side retrieval (hash still used for validation)
+        ALTER TABLE ProjectInvites ADD COLUMN IF NOT EXISTS InviteToken TEXT;
 
         CREATE TABLE IF NOT EXISTS Config (
             Id BIGSERIAL PRIMARY KEY,
