@@ -86,8 +86,7 @@ public sealed class ImportsFunctions
             return await req.ErrorAsync(HttpStatusCode.BadRequest, "No entries");
         }
 
-        var config = await configService.LoadDocumentConfigAsync(projectId, auth.UserId, req.FunctionContext.CancellationToken).ConfigureAwait(false);
-        var parser = new FileNameParser(config);
+        var config = await configService.LoadDocumentConfigAsync(projectId, req.FunctionContext.CancellationToken).ConfigureAwait(false);
         var now = DateTime.UtcNow;
         var imported = 0;
         var errors = new List<string>();
@@ -116,9 +115,8 @@ public sealed class ImportsFunctions
                 Level5 = key.Level5,
                 Level6 = key.Level6
             };
-            var description = !string.IsNullOrWhiteSpace(entry.Description)
-                ? entry.Description
-                : (!string.IsNullOrWhiteSpace(entry.FreeText) ? entry.FreeText : null);
+            // Only set description when explicitly provided; avoid overwriting catalog descriptions with document free text.
+            var description = !string.IsNullOrWhiteSpace(entry.Description) ? entry.Description : null;
             await codeSeriesRepository.UpsertAsync(key, description, number + 1, req.FunctionContext.CancellationToken);
             await documentRepository.UpsertImportedAsync(key, number, entry.FreeText ?? string.Empty, entry.FileName ?? entry.Code, auth.UserId, now, req.FunctionContext.CancellationToken);
             imported++;
@@ -137,7 +135,7 @@ public sealed class ImportsFunctions
         if (!auth.MfaEnabled) return await req.ErrorAsync(HttpStatusCode.Forbidden, "MFA required");
         if (!await IsAtLeast(projectId, auth.UserId, Roles.Contributor, req.FunctionContext.CancellationToken)) return await req.ErrorAsync(HttpStatusCode.Forbidden, "Contributor role required");
 
-        var config = await configService.LoadDocumentConfigAsync(projectId, auth.UserId, req.FunctionContext.CancellationToken).ConfigureAwait(false);
+        var config = await configService.LoadDocumentConfigAsync(projectId, req.FunctionContext.CancellationToken).ConfigureAwait(false);
         var csv = await new StreamReader(req.Body).ReadToEndAsync();
         if (string.IsNullOrWhiteSpace(csv)) return await req.ErrorAsync(HttpStatusCode.BadRequest, "CSV payload empty");
 
@@ -168,8 +166,8 @@ public sealed class ImportsFunctions
                 Level5 = key.Level5,
                 Level6 = key.Level6
             };
-            var description = string.IsNullOrWhiteSpace(freeText) ? null : freeText;
-            await codeSeriesRepository.UpsertAsync(key, description, number + 1, req.FunctionContext.CancellationToken);
+            // Keep catalog descriptions intact; do not replace with document free text.
+            await codeSeriesRepository.UpsertAsync(key, null, number + 1, req.FunctionContext.CancellationToken);
             await documentRepository.UpsertImportedAsync(key, number, freeText, codeRaw, auth.UserId, now, req.FunctionContext.CancellationToken);
             imported++;
         }
@@ -187,7 +185,7 @@ public sealed class ImportsFunctions
         if (!auth.MfaEnabled) return await req.ErrorAsync(HttpStatusCode.Forbidden, "MFA required");
         if (!await IsAtLeast(projectId, auth.UserId, Roles.Contributor, req.FunctionContext.CancellationToken)) return await req.ErrorAsync(HttpStatusCode.Forbidden, "Contributor role required");
 
-        var config = await configService.LoadDocumentConfigAsync(projectId, auth.UserId, req.FunctionContext.CancellationToken).ConfigureAwait(false);
+        var config = await configService.LoadDocumentConfigAsync(projectId, req.FunctionContext.CancellationToken).ConfigureAwait(false);
         IReadOnlyList<ImportDocumentEntry>? entries = null;
         try
         {
@@ -239,9 +237,8 @@ public sealed class ImportsFunctions
                 Level5 = key.Level5,
                 Level6 = key.Level6
             };
-            var description = !string.IsNullOrWhiteSpace(entry.Description)
-                ? entry.Description
-                : (!string.IsNullOrWhiteSpace(entry.FreeText) ? entry.FreeText : null);
+            // Only set description when explicitly provided; avoid overwriting catalog descriptions with document free text.
+            var description = !string.IsNullOrWhiteSpace(entry.Description) ? entry.Description : null;
             await codeSeriesRepository.UpsertAsync(key, description, number + 1, req.FunctionContext.CancellationToken);
             await documentRepository.UpsertImportedAsync(key, number, entry.FreeText ?? string.Empty, entry.FileName ?? entry.Code, auth.UserId, now, req.FunctionContext.CancellationToken);
             imported++;
