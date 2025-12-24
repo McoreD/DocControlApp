@@ -10,11 +10,11 @@ export default function Generate() {
   const [level1, setLevel1] = useState('');
   const [level2, setLevel2] = useState('');
   const [level3, setLevel3] = useState('');
-  const [level4, setLevel4] = useState('');
   const [freeText, setFreeText] = useState('');
   const [output, setOutput] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [previewLoading, setPreviewLoading] = useState(false);
   const { projectId } = useProject();
 
   const runRecommend = async () => {
@@ -27,7 +27,6 @@ export default function Generate() {
       setLevel1(res.level1 ?? '');
       setLevel2(res.level2 ?? '');
       setLevel3(res.level3 ?? '');
-      setLevel4(res.level4 ?? '');
       setFreeText(res.freeText ?? '');
     } catch (err: any) {
       setRecommendError(err.message ?? 'AI recommend failed');
@@ -45,7 +44,6 @@ export default function Generate() {
         level1,
         level2,
         level3,
-        level4: level4 || undefined,
         freeText,
         extension: undefined,
       });
@@ -54,6 +52,26 @@ export default function Generate() {
       setError(err.message ?? 'Failed to create document');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const preview = async () => {
+    if (!projectId) return;
+    setPreviewLoading(true);
+    setError(null);
+    try {
+      const res = await DocumentsApi.preview(projectId, {
+        level1,
+        level2,
+        level3,
+        freeText,
+        extension: undefined,
+      });
+      setOutput(res.fileName ?? '');
+    } catch (err: any) {
+      setError(err.message ?? 'Preview failed');
+    } finally {
+      setPreviewLoading(false);
     }
   };
 
@@ -96,13 +114,16 @@ export default function Generate() {
           <input value={level2} onChange={(e) => setLevel2(e.target.value)} placeholder="GOV" />
           <label>Level3</label>
           <input value={level3} onChange={(e) => setLevel3(e.target.value)} placeholder="REG" />
-          <label>Level4 (optional)</label>
-          <input value={level4} onChange={(e) => setLevel4(e.target.value)} placeholder="SUB" />
           <label>Free text</label>
           <input value={freeText} onChange={(e) => setFreeText(e.target.value)} placeholder="Delpach DocControl" />
-          <button onClick={generate} disabled={!projectId || loading}>
-            {loading ? 'Saving...' : 'Create document'}
-          </button>
+          <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
+            <button onClick={preview} disabled={!projectId || previewLoading}>
+              {previewLoading ? 'Previewing...' : 'Preview'}
+            </button>
+            <button onClick={generate} disabled={!projectId || loading}>
+              {loading ? 'Saving...' : 'Create document'}
+            </button>
+          </div>
           {error && <div className="pill" style={{ background: '#fee2e2', color: '#991b1b' }}>{error}</div>}
         </div>
         <div className="card">

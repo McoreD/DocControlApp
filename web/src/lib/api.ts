@@ -98,6 +98,10 @@ export const DocumentsApi = {
     projectId: number,
     payload: { level1: string; level2: string; level3: string; level4?: string; freeText?: string; extension?: string },
   ) => api<any>(`/projects/${projectId}/documents`, 'POST', payload),
+  preview: (
+    projectId: number,
+    payload: { level1: string; level2: string; level3: string; level4?: string; freeText?: string; extension?: string },
+  ) => api<{ number: number; fileName: string }>(`/projects/${projectId}/documents/preview`, 'POST', payload),
   importCsv: async (projectId: number, csv: string) => {
     const headers = defaultHeaders();
     headers['Content-Type'] = 'text/csv';

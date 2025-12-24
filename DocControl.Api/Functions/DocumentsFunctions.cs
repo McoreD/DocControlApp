@@ -150,6 +150,50 @@ public sealed class DocumentsFunctions
         return await req.ToJsonAsync(new { id = docId, number = allocated.Number, fileName }, HttpStatusCode.Created, jsonOptions);
     }
 
+    [Function("Documents_Preview")]
+    public async Task<HttpResponseData> PreviewAsync(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "projects/{projectId:long}/documents/preview")] HttpRequestData req,
+        long projectId)
+    {
+        var (ok, auth, _) = await authFactory.BindAsync(req, req.FunctionContext.CancellationToken);
+        if (!ok || auth is null) return await req.ErrorAsync(HttpStatusCode.Unauthorized, "Auth required");
+        if (!auth.MfaEnabled) return await req.ErrorAsync(HttpStatusCode.Forbidden, "MFA required");
+        if (!await IsAtLeast(projectId, auth.UserId, Roles.Viewer, req.FunctionContext.CancellationToken)) return await req.ErrorAsync(HttpStatusCode.Forbidden, "Access denied");
+
+        CreateDocumentRequest? payload;
+        try
+        {
+            payload = await JsonSerializer.DeserializeAsync<CreateDocumentRequest>(req.Body, jsonOptions, req.FunctionContext.CancellationToken);
+        }
+        catch (JsonException ex)
+        {
+            logger.LogWarning(ex, "Invalid document preview payload");
+            return await req.ErrorAsync(HttpStatusCode.BadRequest, "Invalid JSON payload");
+        }
+
+        if (payload is null || string.IsNullOrWhiteSpace(payload.Level1) || string.IsNullOrWhiteSpace(payload.Level2) || string.IsNullOrWhiteSpace(payload.Level3))
+        {
+            return await req.ErrorAsync(HttpStatusCode.BadRequest, "Level1-3 required");
+        }
+
+        var config = await configService.LoadDocumentConfigAsync(projectId, req.FunctionContext.CancellationToken).ConfigureAwait(false);
+
+        var key = new CodeSeriesKey
+        {
+            ProjectId = projectId,
+            Level1 = payload.Level1.Trim(),
+            Level2 = payload.Level2.Trim(),
+            Level3 = payload.Level3.Trim(),
+            Level4 = string.IsNullOrWhiteSpace(payload.Level4) ? null : payload.Level4.Trim()
+        };
+
+        var nextNumber = await allocator.PeekNextAsync(key, req.FunctionContext.CancellationToken).ConfigureAwait(false);
+        var generator = new CodeGenerator(config);
+        var fileName = generator.BuildFileName(key, nextNumber, payload.FreeText ?? string.Empty, payload.Extension);
+
+        return await req.ToJsonAsync(new { number = nextNumber, fileName }, HttpStatusCode.OK, jsonOptions);
+    }
+
     [Function("Documents_Purge")]
     public async Task<HttpResponseData> PurgeAsync(
         [HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "projects/{projectId:long}/documents")] HttpRequestData req,
