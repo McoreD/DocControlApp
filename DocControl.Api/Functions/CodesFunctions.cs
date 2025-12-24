@@ -132,13 +132,21 @@ public sealed class CodesFunctions
         if (!auth.MfaEnabled) return await req.ErrorAsync(HttpStatusCode.Forbidden, "MFA required");
         if (!await IsAtLeast(projectId, auth.UserId, Roles.Owner, req.FunctionContext.CancellationToken)) return await req.ErrorAsync(HttpStatusCode.Forbidden, "Owner role required");
 
-        var logicalCodes = (await codeCatalogRepository.ListAsync(projectId, req.FunctionContext.CancellationToken).ConfigureAwait(false)).Count;
-        // Drop documents first to avoid FK violations, then purge code series.
-        var deletedDocs = await documentRepository.PurgeAsync(projectId, req.FunctionContext.CancellationToken).ConfigureAwait(false);
-        var deletedCodes = await codeSeriesRepository.PurgeAsync(projectId, req.FunctionContext.CancellationToken).ConfigureAwait(false);
-        await codeCatalogRepository.PurgeAsync(projectId, req.FunctionContext.CancellationToken).ConfigureAwait(false);
-        logger.LogInformation("Purged documents {Docs} and codes {Codes} for project {Project}", deletedDocs, deletedCodes, projectId);
-        return await req.ToJsonAsync(new { deletedDocuments = deletedDocs, deletedCodes = logicalCodes }, HttpStatusCode.OK, jsonOptions);
+        try
+        {
+            var logicalCodes = (await codeCatalogRepository.ListAsync(projectId, req.FunctionContext.CancellationToken).ConfigureAwait(false)).Count;
+            // Drop documents + audit first to avoid FK violations, then purge code series.
+            var deletedDocs = await documentRepository.CountFilteredAsync(projectId, null, null, null, null, req.FunctionContext.CancellationToken).ConfigureAwait(false);
+            await documentRepository.ClearAllAsync(projectId, req.FunctionContext.CancellationToken).ConfigureAwait(false);
+            var deletedCodes = await codeSeriesRepository.PurgeAsync(projectId, req.FunctionContext.CancellationToken).ConfigureAwait(false);
+            await codeCatalogRepository.PurgeAsync(projectId, req.FunctionContext.CancellationToken).ConfigureAwait(false);
+            logger.LogInformation("Purged documents {Docs} and codes {Codes} for project {Project}", deletedDocs, deletedCodes, projectId);
+            return await req.ToJsonAsync(new { deletedDocuments = deletedDocs, deletedCodes = logicalCodes }, HttpStatusCode.OK, jsonOptions);
+        }
+        catch (Exception ex)
+        {
+            return await req.ErrorAsync(HttpStatusCode.InternalServerError, $"Failed to purge codes: {ex.GetType().Name}: {ex.Message}");
+        }
     }
 
     [Function("CodeSeries_Purge")]

@@ -237,9 +237,17 @@ public sealed class DocumentsFunctions
         if (!auth.MfaEnabled) return await req.ErrorAsync(HttpStatusCode.Forbidden, "MFA required");
         if (!await IsAtLeast(projectId, auth.UserId, Roles.Owner, req.FunctionContext.CancellationToken)) return await req.ErrorAsync(HttpStatusCode.Forbidden, "Owner role required");
 
-        var deleted = await documentRepository.PurgeAsync(projectId, req.FunctionContext.CancellationToken).ConfigureAwait(false);
-        await auditRepository.InsertAsync(projectId, "DocumentsPurged", $"deleted:{deleted}", auth.UserId, DateTime.UtcNow, null, req.FunctionContext.CancellationToken).ConfigureAwait(false);
-        return await req.ToJsonAsync(new { deleted }, HttpStatusCode.OK, jsonOptions);
+        try
+        {
+            var deleted = await documentRepository.CountFilteredAsync(projectId, null, null, null, null, req.FunctionContext.CancellationToken).ConfigureAwait(false);
+            await documentRepository.ClearAllAsync(projectId, req.FunctionContext.CancellationToken).ConfigureAwait(false);
+            await auditRepository.InsertAsync(projectId, "DocumentsPurged", $"deleted:{deleted}", auth.UserId, DateTime.UtcNow, null, req.FunctionContext.CancellationToken).ConfigureAwait(false);
+            return await req.ToJsonAsync(new { deleted }, HttpStatusCode.OK, jsonOptions);
+        }
+        catch (Exception ex)
+        {
+            return await req.ErrorAsync(HttpStatusCode.InternalServerError, $"Failed to purge documents: {ex.GetType().Name}: {ex.Message}");
+        }
     }
 
     [Function("Audit_List")]
