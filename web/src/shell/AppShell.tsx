@@ -17,6 +17,7 @@ export default function AppShell() {
   const navigate = useNavigate();
   const { user, clearUser } = useAuth();
   const { projectId, projectName, setProjectId } = useProject();
+  const appVersion = '1.0.0';
 
   const signOut = () => {
     setProjectId(null);
@@ -59,6 +60,9 @@ export default function AppShell() {
         </button>
       </aside>
       <main className="content">
+        <div style={{ display: 'flex', justifyContent: 'flex-end', fontSize: 12, color: '#94a3b8', marginBottom: 8 }}>
+          DocControl v{appVersion}
+        </div>
         <Outlet />
       </main>
     </div>

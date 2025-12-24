@@ -7,7 +7,7 @@ export default function Register() {
   const { user, setUser, clearUser } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const [mode, setMode] = useState<'register' | 'login' | 'setPassword'>('register');
+  const [mode, setMode] = useState<'register' | 'login' | 'setPassword'>('login');
   const [emailInput, setEmailInput] = useState<HTMLInputElement | null>(null);
   const [mfaInput, setMfaInput] = useState<HTMLInputElement | null>(null);
   const [email, setEmail] = useState(user?.email ?? '');
@@ -284,7 +284,7 @@ export default function Register() {
 
       <div className="card" style={{ marginTop: 12 }}>
         <p className="muted" style={{ margin: 0 }}>
-          {mode === 'register' ? 'Already registered? ' : 'Need an account? '}
+          {mode === 'register' ? 'Already registered? ' : 'New user? '}
           <button
             type="button"
             onClick={() => switchMode(mode === 'register' ? 'login' : 'register')}
