@@ -75,7 +75,7 @@ public sealed class DocumentsFunctions
         if (!auth.MfaEnabled) return await req.ErrorAsync(HttpStatusCode.Forbidden, "MFA required");
         if (!await IsAtLeast(projectId, auth.UserId, Roles.Viewer, req.FunctionContext.CancellationToken)) return await req.ErrorAsync(HttpStatusCode.Forbidden, "Access denied");
 
-        var config = await configService.LoadDocumentConfigAsync(projectId, req.FunctionContext.CancellationToken).ConfigureAwait(false);
+        var config = await configService.LoadDocumentConfigAsync(projectId, auth.UserId, req.FunctionContext.CancellationToken).ConfigureAwait(false);
         var docs = await documentRepository.GetAllAsync(projectId, req.FunctionContext.CancellationToken).ConfigureAwait(false);
         var payload = docs.Select(d => new
         {
@@ -129,7 +129,7 @@ public sealed class DocumentsFunctions
             return await req.ErrorAsync(HttpStatusCode.BadRequest, "Level1-3 required");
         }
 
-        var config = await configService.LoadDocumentConfigAsync(projectId, req.FunctionContext.CancellationToken).ConfigureAwait(false);
+        var config = await configService.LoadDocumentConfigAsync(projectId, auth.UserId, req.FunctionContext.CancellationToken).ConfigureAwait(false);
         var key = new CodeSeriesKey
         {
             ProjectId = projectId,
@@ -176,7 +176,7 @@ public sealed class DocumentsFunctions
             return await req.ErrorAsync(HttpStatusCode.BadRequest, "Level1-3 required");
         }
 
-        var config = await configService.LoadDocumentConfigAsync(projectId, req.FunctionContext.CancellationToken).ConfigureAwait(false);
+        var config = await configService.LoadDocumentConfigAsync(projectId, auth.UserId, req.FunctionContext.CancellationToken).ConfigureAwait(false);
 
         var key = new CodeSeriesKey
         {

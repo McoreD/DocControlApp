@@ -8,38 +8,36 @@ namespace DocControl.Infrastructure.Services;
 
 public sealed class ConfigService
 {
-    private const string DocumentConfigKey = "DocumentConfig";
     private const string AiSettingsKey = "AiSettings";
     private const string ProjectScope = "Project";
     private readonly ConfigRepository configRepository;
     private readonly UserRepository userRepository;
+    private readonly ProjectRepository projectRepository;
 
     public ConfigService(
         ConfigRepository configRepository,
-        UserRepository userRepository)
+        UserRepository userRepository,
+        ProjectRepository projectRepository)
     {
         this.configRepository = configRepository;
         this.userRepository = userRepository;
+        this.projectRepository = projectRepository;
     }
 
-    public async Task<DocumentConfig> LoadDocumentConfigAsync(long projectId, CancellationToken cancellationToken = default)
+    public async Task<DocumentConfig> LoadDocumentConfigAsync(long projectId, long userId, CancellationToken cancellationToken = default)
     {
-        var json = await configRepository.GetAsync(ProjectScope, projectId, DocumentConfigKey, cancellationToken).ConfigureAwait(false);
-        if (string.IsNullOrWhiteSpace(json)) return new DocumentConfig();
-        try
+        var project = await projectRepository.GetAsync(projectId, userId, cancellationToken).ConfigureAwait(false);
+        if (project is null)
         {
-            return JsonSerializer.Deserialize<DocumentConfig>(json) ?? new DocumentConfig();
+            return new DocumentConfig { Separator = "-", PaddingLength = 3, LevelCount = 4, EnableLevel4 = true };
         }
-        catch
+        return new DocumentConfig
         {
-            return new DocumentConfig();
-        }
-    }
-
-    public async Task SaveDocumentConfigAsync(long projectId, DocumentConfig config, CancellationToken cancellationToken = default)
-    {
-        var json = JsonSerializer.Serialize(config);
-        await configRepository.SetAsync(ProjectScope, projectId, DocumentConfigKey, json, cancellationToken).ConfigureAwait(false);
+            Separator = string.IsNullOrWhiteSpace(project.Separator) ? "-" : project.Separator,
+            PaddingLength = project.PaddingLength <= 0 ? 3 : project.PaddingLength,
+            LevelCount = 4,
+            EnableLevel4 = true
+        };
     }
 
     public async Task<AiSettings> LoadAiSettingsAsync(long projectId, CancellationToken cancellationToken = default)

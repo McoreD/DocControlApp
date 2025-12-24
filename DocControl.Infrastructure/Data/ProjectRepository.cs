@@ -12,21 +12,23 @@ public sealed class ProjectRepository
         this.factory = factory;
     }
 
-    public async Task<long> CreateAsync(string name, string description, long createdByUserId, CancellationToken cancellationToken = default)
+    public async Task<long> CreateAsync(string name, string description, string separator, int paddingLength, long createdByUserId, CancellationToken cancellationToken = default)
     {
         await using var conn = factory.Create();
         await conn.OpenAsync(cancellationToken).ConfigureAwait(false);
         await using var tx = await conn.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
 
         const string insertProject = @"
-            INSERT INTO Projects (Name, Description, CreatedByUserId, CreatedAtUtc, IsArchived)
-            VALUES (@name, @description, @createdBy, now() at time zone 'utc', FALSE)
+            INSERT INTO Projects (Name, Description, Separator, PaddingLength, CreatedByUserId, CreatedAtUtc, IsArchived)
+            VALUES (@name, @description, @separator, @padding, @createdBy, now() at time zone 'utc', FALSE)
             RETURNING Id;";
         long projectId;
         await using (var cmd = new NpgsqlCommand(insertProject, conn, (NpgsqlTransaction)tx))
         {
             cmd.Parameters.AddWithValue("@name", name);
             cmd.Parameters.AddWithValue("@description", description);
+            cmd.Parameters.AddWithValue("@separator", string.IsNullOrWhiteSpace(separator) ? "-" : separator);
+            cmd.Parameters.AddWithValue("@padding", paddingLength <= 0 ? 3 : paddingLength);
             cmd.Parameters.AddWithValue("@createdBy", createdByUserId);
             var result = await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
             projectId = Convert.ToInt64(result ?? throw new InvalidOperationException("Failed to create project"));
@@ -55,7 +57,7 @@ public sealed class ProjectRepository
         await conn.OpenAsync(cancellationToken).ConfigureAwait(false);
 
         const string sql = @"
-            SELECT p.Id, p.Name, p.Description, p.CreatedByUserId, p.CreatedAtUtc, p.IsArchived, pm.IsDefault
+            SELECT p.Id, p.Name, p.Description, p.Separator, p.PaddingLength, p.CreatedByUserId, p.CreatedAtUtc, p.IsArchived, pm.IsDefault
             FROM Projects p
             JOIN ProjectMembers pm ON pm.ProjectId = p.Id
             WHERE pm.UserId = @userId AND p.IsArchived = FALSE
@@ -78,7 +80,7 @@ public sealed class ProjectRepository
         await conn.OpenAsync(cancellationToken).ConfigureAwait(false);
 
         const string sql = @"
-            SELECT p.Id, p.Name, p.Description, p.CreatedByUserId, p.CreatedAtUtc, p.IsArchived, pm.IsDefault
+            SELECT p.Id, p.Name, p.Description, p.Separator, p.PaddingLength, p.CreatedByUserId, p.CreatedAtUtc, p.IsArchived, pm.IsDefault
             FROM Projects p
             JOIN ProjectMembers pm ON pm.ProjectId = p.Id
             WHERE p.Id = @projectId AND pm.UserId = @userId;";
@@ -113,9 +115,11 @@ public sealed class ProjectRepository
             Id = reader.GetInt64(0),
             Name = reader.GetString(1),
             Description = reader.GetString(2),
-            CreatedByUserId = reader.GetInt64(3),
-            CreatedAtUtc = reader.GetDateTime(4),
-            IsArchived = reader.GetBoolean(5),
-            IsDefault = reader.GetBoolean(6)
+            Separator = reader.GetString(3),
+            PaddingLength = reader.GetInt32(4),
+            CreatedByUserId = reader.GetInt64(5),
+            CreatedAtUtc = reader.GetDateTime(6),
+            IsArchived = reader.GetBoolean(7),
+            IsDefault = reader.GetBoolean(8)
         };
 }

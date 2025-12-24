@@ -2,11 +2,6 @@ import { useEffect, useState } from 'react';
 import { SettingsApi } from '../lib/api';
 import { useProject } from '../lib/projectContext';
 
-type DocumentConfig = {
-  separator: string;
-  paddingLength: number;
-};
-
 type AiSettings = {
   provider: string;
   openAiModel: string;
@@ -15,7 +10,6 @@ type AiSettings = {
 
 export default function Settings() {
   const { projectId } = useProject();
-  const [docConfig, setDocConfig] = useState<DocumentConfig>({ separator: '-', paddingLength: 3 });
   const [ai, setAi] = useState<AiSettings>({ provider: 'OpenAi', openAiModel: 'gpt-4.1', geminiModel: 'gemini-3-flash-preview' });
   const [openAiKey, setOpenAiKey] = useState('');
   const [geminiKey, setGeminiKey] = useState('');
@@ -32,7 +26,6 @@ export default function Settings() {
       setError(null);
       try {
         const data = await SettingsApi.get(projectId);
-        setDocConfig(data.documentConfig);
         setAi(data.aiSettings);
         setHasOpenAiKey(data.hasOpenAiKey ?? false);
         setHasGeminiKey(data.hasGeminiKey ?? false);
@@ -49,7 +42,6 @@ export default function Settings() {
     setMessage(null);
     try {
       const result = await SettingsApi.save(projectId, {
-        documentConfig: docConfig,
         aiSettings: ai,
         openAiKey,
         geminiKey,
@@ -72,7 +64,7 @@ export default function Settings() {
     <div className="page">
       <h1>Settings</h1>
       <p className="muted">
-        Project settings: separator, padding, enable level4, AI provider/model + keys. Endpoint: GET/POST
+        Project settings: AI provider/model + keys. Endpoint: GET/POST
         <code>/api/projects/{"{projectId}"}/settings</code>.
       </p>
       {!projectId && <div className="pill">Select a project first.</div>}
@@ -80,19 +72,6 @@ export default function Settings() {
       {error && <div className="pill" style={{ background: '#fee2e2', color: '#991b1b' }}>{error}</div>}
       {projectId && (
         <div className="grid">
-          <div className="card">
-            <h3>Document Config</h3>
-            <div className="stack">
-              <label>Separator</label>
-              <input value={docConfig.separator} onChange={(e) => setDocConfig({ ...docConfig, separator: e.target.value })} />
-              <label>Padding Length</label>
-              <input
-                type="number"
-                value={docConfig.paddingLength}
-                onChange={(e) => setDocConfig({ ...docConfig, paddingLength: Number(e.target.value) })}
-              />
-            </div>
-          </div>
           <div className="card">
             <h3>AI</h3>
             <div className="stack">

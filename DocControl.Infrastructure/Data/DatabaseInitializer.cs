@@ -43,6 +43,8 @@ public sealed class DatabaseInitializer
             Id BIGSERIAL PRIMARY KEY,
             Name TEXT NOT NULL,
             Description TEXT NOT NULL,
+            Separator TEXT NOT NULL DEFAULT '-',
+            PaddingLength INTEGER NOT NULL DEFAULT 3,
             CreatedByUserId BIGINT NOT NULL REFERENCES Users(Id),
             CreatedAtUtc TIMESTAMPTZ NOT NULL DEFAULT now(),
             IsArchived BOOLEAN NOT NULL DEFAULT FALSE
@@ -81,6 +83,8 @@ public sealed class DatabaseInitializer
         ALTER TABLE Users ADD COLUMN IF NOT EXISTS PasswordHash TEXT;
         ALTER TABLE Users ADD COLUMN IF NOT EXISTS PasswordSalt TEXT;
         ALTER TABLE Users ADD COLUMN IF NOT EXISTS KeySalt TEXT;
+        ALTER TABLE Projects ADD COLUMN IF NOT EXISTS Separator TEXT NOT NULL DEFAULT '-';
+        ALTER TABLE Projects ADD COLUMN IF NOT EXISTS PaddingLength INTEGER NOT NULL DEFAULT 3;
         ALTER TABLE ProjectMembers ADD COLUMN IF NOT EXISTS IsDefault BOOLEAN NOT NULL DEFAULT FALSE;
 
         CREATE UNIQUE INDEX IF NOT EXISTS IX_ProjectMembers_DefaultProject

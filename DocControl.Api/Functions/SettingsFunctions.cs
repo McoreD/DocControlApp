@@ -47,11 +47,10 @@ public sealed class SettingsFunctions
             return await req.ErrorAsync(HttpStatusCode.Forbidden, "Not a project member.");
         }
 
-        var documentConfig = await configService.LoadDocumentConfigAsync(projectId, req.FunctionContext.CancellationToken).ConfigureAwait(false);
         var aiSettings = await configService.LoadAiSettingsAsync(projectId, req.FunctionContext.CancellationToken).ConfigureAwait(false);
         var (hasOpenAi, hasGemini) = await configService.GetAiKeyStatusAsync(aiSettings, auth.UserId, req.FunctionContext.CancellationToken).ConfigureAwait(false);
 
-        return await req.ToJsonAsync(new ProjectSettingsResponse(documentConfig, aiSettings, hasOpenAi, hasGemini), HttpStatusCode.OK, jsonOptions);
+        return await req.ToJsonAsync(new ProjectSettingsResponse(aiSettings, hasOpenAi, hasGemini), HttpStatusCode.OK, jsonOptions);
     }
 
     [Function("Settings_Save")]
@@ -84,14 +83,11 @@ public sealed class SettingsFunctions
             return await req.ErrorAsync(HttpStatusCode.BadRequest, $"Invalid JSON payload: {ex.Message}");
         }
 
-        if (payload?.DocumentConfig is null || payload.AiSettings is null)
+        if (payload?.AiSettings is null)
         {
-            return await req.ErrorAsync(HttpStatusCode.BadRequest, "DocumentConfig and AiSettings are required.");
+            return await req.ErrorAsync(HttpStatusCode.BadRequest, "AiSettings are required.");
         }
 
-        payload.DocumentConfig.LevelCount = 4; // allow Level4 codes without a toggle
-
-        await configService.SaveDocumentConfigAsync(projectId, payload.DocumentConfig, req.FunctionContext.CancellationToken).ConfigureAwait(false);
         try
         {
             await configService.SaveAiSettingsAsync(
@@ -114,10 +110,9 @@ public sealed class SettingsFunctions
     }
 }
 
-public sealed record ProjectSettingsResponse(DocumentConfig DocumentConfig, AiSettings AiSettings, bool HasOpenAiKey, bool HasGeminiKey);
+public sealed record ProjectSettingsResponse(AiSettings AiSettings, bool HasOpenAiKey, bool HasGeminiKey);
 
 public sealed record SaveProjectSettingsRequest(
-    DocumentConfig DocumentConfig,
     AiSettings AiSettings,
     string? OpenAiKey,
     string? GeminiKey,

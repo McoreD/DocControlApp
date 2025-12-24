@@ -86,12 +86,16 @@ public sealed class ProjectsFunctions
             return await req.ErrorAsync(HttpStatusCode.BadRequest, "Name is required.");
         }
 
-        var projectId = await projectRepository.CreateAsync(payload.Name.Trim(), payload.Description ?? string.Empty, auth.UserId, req.FunctionContext.CancellationToken);
+        var separator = string.IsNullOrWhiteSpace(payload.Separator) ? "-" : payload.Separator.Trim();
+        var padding = payload.PaddingLength <= 0 ? 3 : payload.PaddingLength;
+        var projectId = await projectRepository.CreateAsync(payload.Name.Trim(), payload.Description ?? string.Empty, separator, padding, auth.UserId, req.FunctionContext.CancellationToken);
         var created = new ProjectRecord
         {
             Id = projectId,
             Name = payload.Name.Trim(),
             Description = payload.Description ?? string.Empty,
+            Separator = separator,
+            PaddingLength = padding,
             CreatedByUserId = auth.UserId,
             CreatedAtUtc = DateTime.UtcNow,
             IsArchived = false,
@@ -118,5 +122,5 @@ public sealed class ProjectsFunctions
         return await req.ToJsonAsync(new { projectId }, HttpStatusCode.OK, jsonOptions);
     }
 
-    private sealed record CreateProjectRequest(string Name, string? Description);
+    private sealed record CreateProjectRequest(string Name, string? Description, string? Separator, int PaddingLength);
 }

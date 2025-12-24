@@ -44,7 +44,8 @@ export async function api<T>(path: string, method: HttpMethod = 'GET', body?: un
 
 export const ProjectsApi = {
   list: () => api<any[]>('/projects'),
-  create: (name: string, description: string) => api<any>('/projects', 'POST', { name, description }),
+  create: (name: string, description: string, separator: string, paddingLength: number) =>
+    api<any>('/projects', 'POST', { name, description, separator, paddingLength }),
   get: (projectId: number) => api<any>(`/projects/${projectId}`),
   setDefault: (projectId: number) => api<any>(`/projects/${projectId}/default`, 'POST'),
 };

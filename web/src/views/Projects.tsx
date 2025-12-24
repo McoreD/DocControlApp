@@ -14,6 +14,8 @@ export default function Projects() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+  const [separator, setSeparator] = useState('-');
+  const [paddingLength, setPaddingLength] = useState(3);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [inviteProjectId, setInviteProjectId] = useState<number | null>(null);
@@ -49,9 +51,11 @@ export default function Projects() {
     setLoading(true);
     setError(null);
     try {
-      await ProjectsApi.create(name.trim(), description.trim());
+      await ProjectsApi.create(name.trim(), description.trim(), separator.trim() || '-', paddingLength);
       setName('');
       setDescription('');
+      setSeparator('-');
+      setPaddingLength(3);
       await load();
     } catch (err: any) {
       setError(err.message ?? 'Failed to create project');
@@ -142,6 +146,15 @@ export default function Projects() {
               onChange={(e) => setDescription(e.target.value)}
               placeholder="What is this project about?"
               rows={3}
+            />
+            <label>Separator</label>
+            <input value={separator} onChange={(e) => setSeparator(e.target.value)} placeholder="-" />
+            <label>Padding length</label>
+            <input
+              type="number"
+              min={1}
+              value={paddingLength}
+              onChange={(e) => setPaddingLength(Number(e.target.value))}
             />
             <button onClick={create} disabled={loading}>
               {loading ? 'Working...' : 'Create project'}
