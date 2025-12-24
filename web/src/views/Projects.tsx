@@ -22,6 +22,8 @@ export default function Projects() {
   const [inviteMessage, setInviteMessage] = useState<string | null>(null);
   const [inviteError, setInviteError] = useState<string | null>(null);
   const [inviteLoading, setInviteLoading] = useState(false);
+  const [inviteLink, setInviteLink] = useState<string | null>(null);
+  const [inviteToken, setInviteToken] = useState<string | null>(null);
   const { projectId, setProjectId } = useProject();
 
   const load = async () => {
@@ -117,6 +119,8 @@ export default function Projects() {
                         setInviteRole('Viewer');
                         setInviteError(null);
                         setInviteMessage(null);
+                        setInviteLink(null);
+                        setInviteToken(null);
                       }}
                     >
                       Share
@@ -151,9 +155,19 @@ export default function Projects() {
                 setInviteLoading(true);
                 setInviteError(null);
                 setInviteMessage(null);
+                setInviteLink(null);
+                setInviteToken(null);
                 try {
-                  await MembersApi.invite(inviteProjectId, inviteEmail.trim(), inviteRole);
-                  setInviteMessage('Invite sent.');
+                  const result = await MembersApi.invite(inviteProjectId, inviteEmail.trim(), inviteRole);
+                  const token = result?.token as string | undefined;
+                  if (token) {
+                    const link = `${window.location.origin}/members?inviteToken=${encodeURIComponent(token)}`;
+                    setInviteLink(link);
+                    setInviteToken(token);
+                    setInviteMessage('Share this link with your teammate so they can accept the invite.');
+                  } else {
+                    setInviteMessage('Invite created. Share the token with your teammate.');
+                  }
                 } catch (err: any) {
                   setInviteError(err.message ?? 'Failed to send invite');
                 } finally {
@@ -162,11 +176,43 @@ export default function Projects() {
               }}
               disabled={inviteLoading || !inviteEmail.trim()}
             >
-              {inviteLoading ? 'Sending...' : 'Send invite'}
+              {inviteLoading ? 'Working...' : 'Generate invite link'}
             </button>
           </div>
+          {inviteLink && (
+            <div className="pill" style={{ background: '#ecfdf3', color: '#166534', marginTop: 8 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <span>{inviteMessage ?? 'Share this invite link.'}</span>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <input
+                    readOnly
+                    value={inviteLink}
+                    style={{ flex: 1, fontSize: 12 }}
+                    onFocus={(e) => e.target.select()}
+                  />
+                  <button
+                    onClick={async () => {
+                      try {
+                        await navigator.clipboard.writeText(inviteLink);
+                        setInviteMessage('Copied! Share this link with your teammate.');
+                      } catch {
+                        setInviteMessage('Copy failed. Manually copy the link below.');
+                      }
+                    }}
+                  >
+                    Copy link
+                  </button>
+                </div>
+                {inviteToken && (
+                  <small style={{ color: '#166534' }}>Token: {inviteToken}</small>
+                )}
+              </div>
+            </div>
+          )}
           {inviteError && <div className="pill" style={{ background: '#fee2e2', color: '#991b1b', marginTop: 8 }}>{inviteError}</div>}
-          {inviteMessage && <div className="pill" style={{ background: '#ecfdf3', color: '#166534', marginTop: 8 }}>{inviteMessage}</div>}
+          {!inviteLink && inviteMessage && (
+            <div className="pill" style={{ background: '#ecfdf3', color: '#166534', marginTop: 8 }}>{inviteMessage}</div>
+          )}
         </div>
       )}
     </div>

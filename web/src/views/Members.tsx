@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { MembersApi } from '../lib/api';
 import { useProject } from '../lib/projectContext';
 
@@ -18,6 +19,7 @@ export default function Members() {
   const [message, setMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [inviteToken, setInviteToken] = useState('');
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const load = async () => {
     if (!projectId) return;
@@ -37,6 +39,18 @@ export default function Members() {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId]);
+
+  useEffect(() => {
+    const token = searchParams.get('inviteToken');
+    if (token) {
+      setInviteToken(token);
+      setMessage('Invite token prefilled from shared link. Sign in and accept to join the project.');
+      const params = new URLSearchParams(searchParams);
+      params.delete('inviteToken');
+      setSearchParams(params);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   const invite = async () => {
     if (!projectId || !email.trim()) return;
@@ -119,7 +133,7 @@ export default function Members() {
           <div className="card">
             <strong>Accept invite</strong>
             <div className="stack">
-              <label>Invite token</label>
+              <label>Invite token (paste from shared link)</label>
               <input value={inviteToken} onChange={(e) => setInviteToken(e.target.value)} placeholder="Paste token" />
               <button onClick={accept} disabled={loading}>
                 {loading ? 'Working...' : 'Accept'}
