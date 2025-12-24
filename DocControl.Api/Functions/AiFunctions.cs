@@ -99,7 +99,33 @@ public sealed class AiFunctions
         }
 
         var codes = await codeSeriesRepository.ListAsync(projectId, req.FunctionContext.CancellationToken).ConfigureAwait(false);
-        var display = codes.Select(c => (Level: c.Key.Level4 is null ? 3 : 4, Code: $"{c.Key.Level1}-{c.Key.Level2}-{c.Key.Level3}{(c.Key.Level4 is null ? "" : "-" + c.Key.Level4)}", Description: c.Description ?? string.Empty)).ToList();
+        var display = codes.Select(c =>
+        {
+            int level;
+            string code;
+            if (!string.IsNullOrWhiteSpace(c.Key.Level4))
+            {
+                level = 4;
+                code = c.Key.Level4!;
+            }
+            else if (!string.IsNullOrWhiteSpace(c.Key.Level3))
+            {
+                level = 3;
+                code = c.Key.Level3;
+            }
+            else if (!string.IsNullOrWhiteSpace(c.Key.Level2))
+            {
+                level = 2;
+                code = c.Key.Level2;
+            }
+            else
+            {
+                level = 1;
+                code = c.Key.Level1;
+            }
+
+            return (Level: level, Code: code, Description: c.Description ?? string.Empty);
+        }).ToList();
 
         var nlq = new NlqService(orchestrator);
         var result = await nlq.RecommendCodeAsync(payload.Query, display, req.FunctionContext.CancellationToken).ConfigureAwait(false);

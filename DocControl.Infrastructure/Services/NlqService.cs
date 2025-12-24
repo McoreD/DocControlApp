@@ -82,8 +82,15 @@ public sealed class NlqService
 
     public async Task<NlqResponse?> RecommendCodeAsync(string query, IReadOnlyList<(int Level, string Code, String Description)> codes, CancellationToken cancellationToken = default)
     {
-        var catalog = codes.Select(c => new { c.Level, c.Code, c.Description }).ToList();
-        var catalogJson = JsonSerializer.Serialize(catalog);
+        var level1 = codes.Where(c => c.Level == 1).Select(c => new { c.Code, c.Description }).DistinctBy(c => c.Code).ToList();
+        var level2 = codes.Where(c => c.Level == 2).Select(c => new { c.Code, c.Description }).DistinctBy(c => c.Code).ToList();
+        var level3 = codes.Where(c => c.Level == 3).Select(c => new { c.Code, c.Description }).DistinctBy(c => c.Code).ToList();
+        var catalogJson = JsonSerializer.Serialize(new
+        {
+            level1,
+            level2,
+            level3
+        });
 
         var schema = JsonDocument.Parse("""
 {
@@ -103,23 +110,24 @@ public sealed class NlqService
 
         var request = new AiStructuredRequest
         {
-            Prompt = $@"You are a strict code recommender. Given the user request and the catalog, choose exactly one best code per level (1-3) from the catalog if available; do not concatenate multiple codes into a single field. If no suitable code exists for a level, invent a concise alphanumeric code and mark the reason.
+            Prompt = $@"You are a strict code recommender. Given the user request and the catalog lists for each level, choose exactly one best code per level (1-3) from the matching list; never concatenate multiple codes. If no suitable code exists for a level, invent a concise alphanumeric code and note why.
 
 User query: {query}
 
-Catalog (array of objects): {catalogJson}
+Catalog (separate arrays per level):
+{catalogJson}
 
 Rules:
-- level1 must be a single level-1 code (no separators). Pick the best match; do not combine multiple codes.
-- level2 must be a single level-2 code (no separators). Pick the best match; do not combine multiple codes.
-- level3 must be a single level-3 code (no separators). Pick the best match; do not combine multiple codes.
+- level1 must be a single value from level1 list (no separators). If none fit, invent a short code.
+- level2 must be a single value from level2 list. Do not prepend/append other codes.
+- level3 must be a single value from level3 list. Do not prepend/append other codes.
 - level4 is optional; leave empty/null unless clearly required.
 - freeText should be a short human-readable description of the document/request.
 - Reason should briefly explain why you chose these codes.
 
 Return JSON only.",
             ResponseSchema = schema,
-            SystemInstruction = "Return a strict JSON object with level1, level2, level3, optional level4, freeText, and a brief reason. Use existing codes when possible. Never concatenate multiple codes into one field."
+            SystemInstruction = "Return a strict JSON object with level1, level2, level3, optional level4, freeText, and a brief reason. Use existing codes from their respective lists when possible. Never concatenate multiple codes into one field."
         };
 
         var result = await orchestrator.ExecuteAsync(request, cancellationToken: cancellationToken).ConfigureAwait(false);
