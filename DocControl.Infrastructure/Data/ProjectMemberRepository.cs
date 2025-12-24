@@ -32,10 +32,11 @@ public sealed class ProjectMemberRepository
         await using var conn = factory.Create();
         await conn.OpenAsync(cancellationToken).ConfigureAwait(false);
         const string sql = @"
-            SELECT ProjectId, UserId, Role, AddedByUserId, AddedAtUtc
-            FROM ProjectMembers
-            WHERE ProjectId = @projectId
-            ORDER BY AddedAtUtc DESC;";
+            SELECT pm.ProjectId, pm.UserId, u.DisplayName, pm.Role, pm.AddedByUserId, pm.AddedAtUtc
+            FROM ProjectMembers pm
+            JOIN Users u ON u.Id = pm.UserId
+            WHERE pm.ProjectId = @projectId
+            ORDER BY pm.AddedAtUtc DESC;";
 
         await using var cmd = new NpgsqlCommand(sql, conn);
         cmd.Parameters.AddWithValue("@projectId", projectId);
@@ -46,9 +47,10 @@ public sealed class ProjectMemberRepository
             {
                 ProjectId = reader.GetInt64(0),
                 UserId = reader.GetInt64(1),
-                Role = reader.GetString(2),
-                AddedByUserId = reader.GetInt64(3),
-                AddedAtUtc = reader.GetDateTime(4)
+                DisplayName = reader.GetString(2),
+                Role = reader.GetString(3),
+                AddedByUserId = reader.GetInt64(4),
+                AddedAtUtc = reader.GetDateTime(5)
             });
         }
         return list;

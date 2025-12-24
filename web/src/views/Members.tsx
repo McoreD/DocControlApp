@@ -201,6 +201,7 @@ export default function Members() {
                 <thead>
                   <tr>
                     <th>User</th>
+                    <th>Display Name</th>
                     <th>Role</th>
                     <th>Added</th>
                     <th>Actions</th>
@@ -210,6 +211,7 @@ export default function Members() {
                   {members.map((m) => (
                     <tr key={m.userId}>
                       <td>{m.userId}</td>
+                      <td>{(m as any).displayName ?? ''}</td>
                       <td>
                         <select value={m.role} onChange={(e) => changeRole(m.userId, e.target.value)}>
                           <option value="Owner">Owner</option>
