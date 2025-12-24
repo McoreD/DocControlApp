@@ -35,7 +35,6 @@ type CodeSeries = {
     level6?: string | null;
   };
   description?: string | null;
-  nextNumber: number;
 };
 
 export default function ProjectProperties() {
@@ -171,7 +170,6 @@ export default function ProjectProperties() {
                     <th>Level</th>
                     <th>Code</th>
                     <th>Description</th>
-                    <th>Next #</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -189,7 +187,6 @@ export default function ProjectProperties() {
                         <td>{level}</td>
                         <td>{code}</td>
                         <td className="muted">{c.description ?? ''}</td>
-                        <td className="muted">{c.nextNumber}</td>
                       </tr>
                     );
                   })}

@@ -15,23 +15,26 @@ public sealed class CodesFunctions
 {
     private readonly AuthContextFactory authFactory;
     private readonly ProjectMemberRepository memberRepository;
-    private readonly CodeSeriesRepository codeSeriesRepository;
     private readonly DocumentRepository documentRepository;
+    private readonly CodeSeriesRepository codeSeriesRepository;
+    private readonly CodeCatalogRepository codeCatalogRepository;
     private readonly JsonSerializerOptions jsonOptions;
     private readonly ILogger<CodesFunctions> logger;
 
     public CodesFunctions(
         AuthContextFactory authFactory,
         ProjectMemberRepository memberRepository,
-        CodeSeriesRepository codeSeriesRepository,
         DocumentRepository documentRepository,
+        CodeSeriesRepository codeSeriesRepository,
+        CodeCatalogRepository codeCatalogRepository,
         IOptions<JsonSerializerOptions> jsonOptions,
         ILogger<CodesFunctions> logger)
     {
         this.authFactory = authFactory;
         this.memberRepository = memberRepository;
-        this.codeSeriesRepository = codeSeriesRepository;
         this.documentRepository = documentRepository;
+        this.codeSeriesRepository = codeSeriesRepository;
+        this.codeCatalogRepository = codeCatalogRepository;
         this.jsonOptions = jsonOptions.Value;
         this.logger = logger;
     }
@@ -46,7 +49,7 @@ public sealed class CodesFunctions
         if (!auth.MfaEnabled) return await req.ErrorAsync(HttpStatusCode.Forbidden, "MFA required");
         if (!await IsAtLeast(projectId, auth.UserId, Roles.Viewer, req.FunctionContext.CancellationToken)) return await req.ErrorAsync(HttpStatusCode.Forbidden, "Access denied");
 
-        var codes = await codeSeriesRepository.ListAsync(projectId, req.FunctionContext.CancellationToken);
+        var codes = await codeCatalogRepository.ListAsync(projectId, req.FunctionContext.CancellationToken);
         return await req.ToJsonAsync(codes, HttpStatusCode.OK, jsonOptions);
     }
 
@@ -86,7 +89,7 @@ public sealed class CodesFunctions
             Level5 = string.IsNullOrWhiteSpace(payload.Level5) ? null : payload.Level5.Trim(),
             Level6 = string.IsNullOrWhiteSpace(payload.Level6) ? null : payload.Level6.Trim()
         };
-        var id = await codeSeriesRepository.UpsertAsync(key, payload.Description, payload.NextNumber, req.FunctionContext.CancellationToken);
+        var id = await codeCatalogRepository.UpsertAsync(key, payload.Description, req.FunctionContext.CancellationToken);
         return await req.ToJsonAsync(new { id }, HttpStatusCode.OK, jsonOptions);
     }
 
@@ -101,7 +104,7 @@ public sealed class CodesFunctions
         if (!auth.MfaEnabled) return await req.ErrorAsync(HttpStatusCode.Forbidden, "MFA required");
         if (!await IsAtLeast(projectId, auth.UserId, Roles.Contributor, req.FunctionContext.CancellationToken)) return await req.ErrorAsync(HttpStatusCode.Forbidden, "Contributor role required");
 
-        await codeSeriesRepository.DeleteAsync(projectId, codeSeriesId, req.FunctionContext.CancellationToken);
+        await codeCatalogRepository.DeleteAsync(projectId, codeSeriesId, req.FunctionContext.CancellationToken);
         return req.ToJsonAsync(new { deleted = codeSeriesId }, HttpStatusCode.OK, jsonOptions).Result;
     }
 
@@ -115,10 +118,11 @@ public sealed class CodesFunctions
         if (!auth.MfaEnabled) return await req.ErrorAsync(HttpStatusCode.Forbidden, "MFA required");
         if (!await IsAtLeast(projectId, auth.UserId, Roles.Owner, req.FunctionContext.CancellationToken)) return await req.ErrorAsync(HttpStatusCode.Forbidden, "Owner role required");
 
-        var logicalCodes = await codeSeriesRepository.CountDistinctAsync(projectId, req.FunctionContext.CancellationToken).ConfigureAwait(false);
+        var logicalCodes = (await codeCatalogRepository.ListAsync(projectId, req.FunctionContext.CancellationToken).ConfigureAwait(false)).Count;
         // Drop documents first to avoid FK violations, then purge code series.
         var deletedDocs = await documentRepository.PurgeAsync(projectId, req.FunctionContext.CancellationToken).ConfigureAwait(false);
         var deletedCodes = await codeSeriesRepository.PurgeAsync(projectId, req.FunctionContext.CancellationToken).ConfigureAwait(false);
+        await codeCatalogRepository.PurgeAsync(projectId, req.FunctionContext.CancellationToken).ConfigureAwait(false);
         logger.LogInformation("Purged documents {Docs} and codes {Codes} for project {Project}", deletedDocs, deletedCodes, projectId);
         return await req.ToJsonAsync(new { deletedDocuments = deletedDocs, deletedCodes = logicalCodes }, HttpStatusCode.OK, jsonOptions);
     }
@@ -133,7 +137,7 @@ public sealed class CodesFunctions
         if (!auth.MfaEnabled) return await req.ErrorAsync(HttpStatusCode.Forbidden, "MFA required");
         if (!await IsAtLeast(projectId, auth.UserId, Roles.Viewer, req.FunctionContext.CancellationToken)) return await req.ErrorAsync(HttpStatusCode.Forbidden, "Access denied");
 
-        var codes = await codeSeriesRepository.ListAsync(projectId, req.FunctionContext.CancellationToken);
+        var codes = await codeCatalogRepository.ListAsync(projectId, req.FunctionContext.CancellationToken);
         var payload = codes.Select(c => new
         {
             c.Key.Level1,
@@ -142,8 +146,7 @@ public sealed class CodesFunctions
             c.Key.Level4,
             c.Key.Level5,
             c.Key.Level6,
-            c.Description,
-            c.NextNumber
+            c.Description
         });
         return await req.ToJsonAsync(payload, HttpStatusCode.OK, jsonOptions);
     }
@@ -185,7 +188,7 @@ public sealed class CodesFunctions
                 Level5 = string.IsNullOrWhiteSpace(p.Level5) ? null : p.Level5.Trim(),
                 Level6 = string.IsNullOrWhiteSpace(p.Level6) ? null : p.Level6.Trim()
             };
-            await codeSeriesRepository.UpsertAsync(key, p.Description, p.NextNumber, req.FunctionContext.CancellationToken);
+            await codeCatalogRepository.UpsertAsync(key, p.Description, req.FunctionContext.CancellationToken);
             imported++;
         }
 

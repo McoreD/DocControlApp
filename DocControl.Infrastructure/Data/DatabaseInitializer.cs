@@ -210,6 +210,19 @@ public sealed class DatabaseInitializer
             UNIQUE(ProjectId, Level1, Level2, Level3, Level4, Level5, Level6)
         );
 
+        CREATE TABLE IF NOT EXISTS CodeCatalog (
+            Id BIGSERIAL PRIMARY KEY,
+            ProjectId BIGINT NOT NULL REFERENCES Projects(Id) ON DELETE CASCADE,
+            Level1 TEXT NOT NULL,
+            Level2 TEXT NOT NULL,
+            Level3 TEXT NOT NULL,
+            Level4 TEXT NOT NULL DEFAULT '',
+            Level5 TEXT NOT NULL DEFAULT '',
+            Level6 TEXT NOT NULL DEFAULT '',
+            Description TEXT,
+            UNIQUE(ProjectId, Level1, Level2, Level3, Level4, Level5, Level6)
+        );
+
         CREATE TABLE IF NOT EXISTS Documents (
             Id BIGSERIAL PRIMARY KEY,
             ProjectId BIGINT NOT NULL REFERENCES Projects(Id) ON DELETE CASCADE,

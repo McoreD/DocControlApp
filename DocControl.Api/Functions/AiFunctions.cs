@@ -14,7 +14,7 @@ public sealed class AiFunctions
 {
     private readonly AuthContextFactory authFactory;
     private readonly ProjectMemberRepository memberRepository;
-    private readonly CodeSeriesRepository codeSeriesRepository;
+    private readonly CodeCatalogRepository codeCatalogRepository;
     private readonly AiOrchestratorFactory aiFactory;
     private readonly JsonSerializerOptions jsonOptions;
     private readonly ILogger<AiFunctions> logger;
@@ -22,14 +22,14 @@ public sealed class AiFunctions
     public AiFunctions(
         AuthContextFactory authFactory,
         ProjectMemberRepository memberRepository,
-        CodeSeriesRepository codeSeriesRepository,
+        CodeCatalogRepository codeCatalogRepository,
         AiOrchestratorFactory aiFactory,
         IOptions<JsonSerializerOptions> jsonOptions,
         ILogger<AiFunctions> logger)
     {
         this.authFactory = authFactory;
         this.memberRepository = memberRepository;
-        this.codeSeriesRepository = codeSeriesRepository;
+        this.codeCatalogRepository = codeCatalogRepository;
         this.aiFactory = aiFactory;
         this.jsonOptions = jsonOptions.Value;
         this.logger = logger;
@@ -98,7 +98,7 @@ public sealed class AiFunctions
             return await req.ErrorAsync(HttpStatusCode.BadRequest, "Query required");
         }
 
-        var codes = await codeSeriesRepository.ListAsync(projectId, req.FunctionContext.CancellationToken).ConfigureAwait(false);
+        var codes = await codeCatalogRepository.ListAsync(projectId, req.FunctionContext.CancellationToken).ConfigureAwait(false);
         var display = codes.Select(c =>
         {
             int level;

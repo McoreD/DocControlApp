@@ -6,7 +6,6 @@ type CodeSeries = {
   id: number;
   key: { level1: string; level2: string; level3: string; level4?: string | null; level5?: string | null; level6?: string | null };
   description?: string | null;
-  nextNumber: number;
 };
 
 export default function Codes() {

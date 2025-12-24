@@ -5,11 +5,11 @@ namespace DocControl.Infrastructure.Services;
 
 public sealed class CodeImportService
 {
-    private readonly CodeSeriesRepository codeSeriesRepository;
+    private readonly CodeCatalogRepository codeCatalogRepository;
 
-    public CodeImportService(CodeSeriesRepository codeSeriesRepository)
+    public CodeImportService(CodeCatalogRepository codeCatalogRepository)
     {
-        this.codeSeriesRepository = codeSeriesRepository;
+        this.codeCatalogRepository = codeCatalogRepository;
     }
 
     public async Task<CodeImportResult> ImportCodesFromCsvAsync(long projectId, string csvContent, CancellationToken cancellationToken = default)
@@ -26,8 +26,6 @@ public sealed class CodeImportService
 
         // Skip header row if it exists
         var dataLines = lines.Skip(1);
-        var codeSeriesData = new List<(CodeSeriesKey key, string description, int maxNumber)>();
-
         // Track current values at each level for hierarchical code building
         string currentLevel1 = "";
         string currentLevel2 = "";
@@ -92,24 +90,12 @@ public sealed class CodeImportService
                 }
 
                 var key = CreateCodeSeriesKeyFromHierarchy(projectId, level, currentLevel1, currentLevel2, currentLevel3, currentLevel4, currentLevel5, code);
-                codeSeriesData.Add((key, description, 1)); // Start with NextNumber = 1
+                await codeCatalogRepository.UpsertAsync(key, description, cancellationToken).ConfigureAwait(false);
                 result.SuccessCount++;
             }
             catch (Exception ex)
             {
                 result.AddError($"Failed to process code '{code}': {ex.Message}");
-            }
-        }
-
-        if (codeSeriesData.Count > 0)
-        {
-            try
-            {
-                await codeSeriesRepository.SeedNextNumbersAsync(codeSeriesData, cancellationToken);
-            }
-            catch (Exception ex)
-            {
-                result.AddError($"Failed to save codes to database: {ex.Message}");
             }
         }
 

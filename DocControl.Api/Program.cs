@@ -57,6 +57,7 @@ builder.Services.AddSingleton<DocumentRepository>();
 builder.Services.AddSingleton<NumberAllocator>();
 builder.Services.AddSingleton<AuditRepository>();
 builder.Services.AddSingleton<CodeSeriesRepository>();
+builder.Services.AddSingleton<CodeCatalogRepository>();
 builder.Services.AddSingleton<CodeImportService>();
 builder.Services.AddSingleton<MfaService>();
 builder.Services.AddSingleton<AiOrchestratorFactory>();
