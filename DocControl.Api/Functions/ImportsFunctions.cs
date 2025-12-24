@@ -329,9 +329,9 @@ public sealed class ImportsFunctions
             Level1 = parts.ElementAtOrDefault(0) ?? string.Empty,
             Level2 = parts.ElementAtOrDefault(1) ?? string.Empty,
             Level3 = parts.ElementAtOrDefault(2) ?? string.Empty,
-            Level4 = parts.ElementAtOrDefault(3),
-            Level5 = parts.ElementAtOrDefault(4),
-            Level6 = parts.ElementAtOrDefault(5)
+            Level4 = levelCount >= 4 ? parts.ElementAtOrDefault(3) : null,
+            Level5 = levelCount >= 5 ? parts.ElementAtOrDefault(4) : null,
+            Level6 = levelCount >= 6 ? parts.ElementAtOrDefault(5) : null
         };
         return true;
     }

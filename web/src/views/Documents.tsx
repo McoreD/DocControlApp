@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { DocumentsApi } from '../lib/api';
+import { DocumentsApi, ProjectsApi } from '../lib/api';
 import { useProject } from '../lib/projectContext';
 
 type Document = {
@@ -16,9 +16,16 @@ type Document = {
   freeText?: string | null;
 };
 
+type ProjectConfig = {
+  separator: string;
+  paddingLength: number;
+  levelCount: number;
+};
+
 export default function Documents() {
   const { projectId } = useProject();
   const [docs, setDocs] = useState<Document[]>([]);
+  const [projectConfig, setProjectConfig] = useState<ProjectConfig | null>(null);
   const [q, setQ] = useState('');
   const [sortKey, setSortKey] = useState<'code' | 'freeText' | 'createdAtUtc'>('createdAtUtc');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
@@ -44,6 +51,42 @@ export default function Documents() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId]);
 
+  useEffect(() => {
+    if (!projectId) {
+      setProjectConfig(null);
+      return;
+    }
+    const loadProject = async () => {
+      try {
+        const project = await ProjectsApi.get(projectId);
+        setProjectConfig({
+          separator: project.separator ?? '-',
+          paddingLength: project.paddingLength ?? 3,
+          levelCount: project.levelCount ?? 3,
+        });
+      } catch (err: any) {
+        setError(err.message ?? 'Failed to load project configuration');
+      }
+    };
+    loadProject();
+  }, [projectId]);
+
+  const buildCode = (doc: Document) => {
+    const separator = projectConfig?.separator?.length ? projectConfig.separator : '-';
+    const padding = projectConfig?.paddingLength && projectConfig.paddingLength > 0 ? projectConfig.paddingLength : 3;
+    const levelCount = Math.min(Math.max(projectConfig?.levelCount ?? 3, 1), 6);
+    const parts: string[] = [];
+    if (levelCount >= 1) parts.push(doc.level1);
+    if (levelCount >= 2) parts.push(doc.level2);
+    if (levelCount >= 3) parts.push(doc.level3);
+    if (levelCount >= 4 && doc.level4) parts.push(doc.level4);
+    if (levelCount >= 5 && doc.level5) parts.push(doc.level5);
+    if (levelCount >= 6 && doc.level6) parts.push(doc.level6);
+    const number = String(doc.number ?? 0).padStart(padding, '0');
+    parts.push(number);
+    return parts.join(separator);
+  };
+
   const sortedDocs = [...docs].sort((a, b) => {
     if (sortKey === 'createdAtUtc') {
       const aTime = new Date(a.createdAtUtc).getTime();
@@ -55,8 +98,8 @@ export default function Documents() {
       const bText = (b.freeText ?? '').toLowerCase();
       return sortDir === 'asc' ? aText.localeCompare(bText) : bText.localeCompare(aText);
     }
-    const aCode = (a.fileName ?? '').split(' ')[0] ?? '';
-    const bCode = (b.fileName ?? '').split(' ')[0] ?? '';
+    const aCode = buildCode(a).toLowerCase();
+    const bCode = buildCode(b).toLowerCase();
     return sortDir === 'asc' ? aCode.localeCompare(bCode) : bCode.localeCompare(aCode);
   });
 
@@ -116,7 +159,7 @@ export default function Documents() {
             </thead>
             <tbody>
               {sortedDocs.map((d) => {
-                const code = (d.fileName ?? '').split(' ')[0] ?? '';
+                const code = buildCode(d);
                 return (
                   <tr key={d.id}>
                     <td className="muted">{code}</td>
