@@ -65,8 +65,24 @@ public sealed class AiFunctions
         }
 
         var nlq = new NlqService(orchestrator);
-        var result = await nlq.InterpretAsync(payload.Query, req.FunctionContext.CancellationToken).ConfigureAwait(false);
-        return await req.ToJsonAsync(result, HttpStatusCode.OK, jsonOptions);
+        try
+        {
+            var result = await nlq.InterpretAsync(payload.Query, req.FunctionContext.CancellationToken).ConfigureAwait(false);
+            return await req.ToJsonAsync(result, HttpStatusCode.OK, jsonOptions);
+        }
+        catch (Exception ex)
+        {
+            if (ex.Data.Contains("raw"))
+            {
+                logger.LogError(ex, "AI interpret failed. Raw: {Raw}", ex.Data["raw"]);
+            }
+            else
+            {
+                logger.LogError(ex, "AI interpret failed.");
+            }
+
+            return await req.ErrorAsync(HttpStatusCode.BadGateway, "AI interpret failed");
+        }
     }
 
     [Function("AI_Recommend")]
@@ -138,8 +154,24 @@ public sealed class AiFunctions
         }).ToList();
 
         var nlq = new NlqService(orchestrator);
-        var result = await nlq.RecommendCodeAsync(payload.Query, display, req.FunctionContext.CancellationToken).ConfigureAwait(false);
-        return await req.ToJsonAsync(result, HttpStatusCode.OK, jsonOptions);
+        try
+        {
+            var result = await nlq.RecommendCodeAsync(payload.Query, display, req.FunctionContext.CancellationToken).ConfigureAwait(false);
+            return await req.ToJsonAsync(result, HttpStatusCode.OK, jsonOptions);
+        }
+        catch (Exception ex)
+        {
+            if (ex.Data.Contains("raw"))
+            {
+                logger.LogError(ex, "AI recommend failed. Raw: {Raw}", ex.Data["raw"]);
+            }
+            else
+            {
+                logger.LogError(ex, "AI recommend failed.");
+            }
+
+            return await req.ErrorAsync(HttpStatusCode.BadGateway, "AI recommend failed");
+        }
     }
 
     private async Task<bool> IsAtLeast(long projectId, long userId, string requiredRole, CancellationToken cancellationToken)
