@@ -11,7 +11,7 @@ type Member = {
 };
 
 export default function Members() {
-  const { projectId } = useProject();
+  const { projectId, projectName } = useProject();
   const [members, setMembers] = useState<Member[]>([]);
   const [pending, setPending] = useState<any[]>([]);
   const [error, setError] = useState<string | null>(null);
