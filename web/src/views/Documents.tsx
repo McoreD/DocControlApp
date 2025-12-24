@@ -20,6 +20,8 @@ export default function Documents() {
   const { projectId } = useProject();
   const [docs, setDocs] = useState<Document[]>([]);
   const [q, setQ] = useState('');
+  const [sortKey, setSortKey] = useState<'code' | 'freeText' | 'createdAtUtc'>('createdAtUtc');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -41,6 +43,31 @@ export default function Documents() {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId]);
+
+  const sortedDocs = [...docs].sort((a, b) => {
+    if (sortKey === 'createdAtUtc') {
+      const aTime = new Date(a.createdAtUtc).getTime();
+      const bTime = new Date(b.createdAtUtc).getTime();
+      return sortDir === 'asc' ? aTime - bTime : bTime - aTime;
+    }
+    if (sortKey === 'freeText') {
+      const aText = (a.freeText ?? '').toLowerCase();
+      const bText = (b.freeText ?? '').toLowerCase();
+      return sortDir === 'asc' ? aText.localeCompare(bText) : bText.localeCompare(aText);
+    }
+    const aCode = (a.fileName ?? '').split(' ')[0] ?? '';
+    const bCode = (b.fileName ?? '').split(' ')[0] ?? '';
+    return sortDir === 'asc' ? aCode.localeCompare(bCode) : bCode.localeCompare(aCode);
+  });
+
+  const toggleSort = (key: 'code' | 'freeText' | 'createdAtUtc') => {
+    if (sortKey === key) {
+      setSortDir(sortDir === 'asc' ? 'desc' : 'asc');
+      return;
+    }
+    setSortKey(key);
+    setSortDir('asc');
+  };
 
   return (
     <div className="page">
@@ -70,18 +97,28 @@ export default function Documents() {
           <table className="table">
             <thead>
               <tr>
-                <th>File</th>
-                <th>Code</th>
-                <th>Free text</th>
-                <th>Created</th>
+                <th>
+                  <button type="button" className="link" onClick={() => toggleSort('code')}>
+                    Code {sortKey === 'code' ? (sortDir === 'asc' ? '▲' : '▼') : ''}
+                  </button>
+                </th>
+                <th>
+                  <button type="button" className="link" onClick={() => toggleSort('freeText')}>
+                    Free text {sortKey === 'freeText' ? (sortDir === 'asc' ? '▲' : '▼') : ''}
+                  </button>
+                </th>
+                <th>
+                  <button type="button" className="link" onClick={() => toggleSort('createdAtUtc')}>
+                    Created {sortKey === 'createdAtUtc' ? (sortDir === 'asc' ? '▲' : '▼') : ''}
+                  </button>
+                </th>
               </tr>
             </thead>
             <tbody>
-              {docs.map((d) => {
+              {sortedDocs.map((d) => {
                 const code = (d.fileName ?? '').split(' ')[0] ?? '';
                 return (
                   <tr key={d.id}>
-                    <td>{d.fileName}</td>
                     <td className="muted">{code}</td>
                     <td className="muted">{d.freeText ?? ''}</td>
                     <td className="muted">{new Date(d.createdAtUtc).toLocaleString()}</td>

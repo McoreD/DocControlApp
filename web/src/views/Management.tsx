@@ -27,6 +27,48 @@ async function pickFileText(opts: FilePickOptions): Promise<string | null> {
   });
 }
 
+function parseCsvLine(line: string): string[] {
+  const result: string[] = [];
+  let current = '';
+  let inQuotes = false;
+
+  for (let i = 0; i < line.length; i += 1) {
+    const ch = line[i];
+    if (ch === '"') {
+      if (inQuotes && line[i + 1] === '"') {
+        current += '"';
+        i += 1;
+      } else {
+        inQuotes = !inQuotes;
+      }
+      continue;
+    }
+    if (ch === ',' && !inQuotes) {
+      result.push(current);
+      current = '';
+      continue;
+    }
+    current += ch;
+  }
+
+  result.push(current);
+  return result;
+}
+
+function parseDocumentsCsv(csv: string) {
+  const lines = csv.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  if (lines.length === 0) return [];
+  const dataLines = lines[0].toLowerCase().startsWith('code') ? lines.slice(1) : lines;
+
+  return dataLines
+    .map((line) => parseCsvLine(line))
+    .map((parts) => ({
+      code: (parts[0] ?? '').trim(),
+      freeText: (parts[1] ?? '').trim(),
+    }))
+    .filter((entry) => entry.code.length > 0);
+}
+
 function downloadFile(contents: string, filename: string, mime = 'text/plain') {
   const blob = new Blob([contents], { type: mime });
   const url = URL.createObjectURL(blob);
@@ -140,17 +182,27 @@ export default function Management() {
     setCurrentAction('importDocsCsv');
     resetStatus();
     try {
-      const count = (() => {
-        const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
-        if (lines.length === 0) return 0;
-        const data = lines[0].toLowerCase().startsWith('code') ? lines.slice(1) : lines;
-        return data.length;
-      })();
-      setMessage(`Importing ${count} document(s)...`);
-      const result = await DocumentsApi.importCsv(projectId, text);
-      const imported = result?.imported ?? 0;
-      const errors = result?.errors?.length ?? 0;
-      setMessage(`Imported ${imported} document(s) from CSV${errors ? ` with ${errors} error(s)` : ''}.`);
+      const entries = parseDocumentsCsv(text);
+      if (entries.length === 0) {
+        setError('CSV did not contain any document rows.');
+        return;
+      }
+      setMessage(`Importing ${entries.length} document(s)...`);
+      const batchSize = 100;
+      let imported = 0;
+      const errors: string[] = [];
+      for (let i = 0; i < entries.length; i += batchSize) {
+        const batch = entries.slice(i, i + batchSize);
+        const result = await DocumentsApi.importSimple(projectId, batch);
+        imported += result?.imported ?? 0;
+        if (Array.isArray(result?.errors)) {
+          errors.push(...result.errors);
+        }
+      }
+      setMessage(`Imported ${imported} document(s) from CSV${errors.length ? ` with ${errors.length} error(s)` : ''}.`);
+      if (errors.length > 0) {
+        setError(`First error: ${errors[0]}`);
+      }
     } catch (err: any) {
       setError(err.message ?? 'Document import failed');
     } finally {
