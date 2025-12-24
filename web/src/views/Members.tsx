@@ -13,9 +13,11 @@ type Member = {
 export default function Members() {
   const { projectId } = useProject();
   const [members, setMembers] = useState<Member[]>([]);
+  const [pending, setPending] = useState<any[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [loadingPending, setLoadingPending] = useState(false);
   const [inviteToken, setInviteToken] = useState('');
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -33,8 +35,22 @@ export default function Members() {
     }
   };
 
+  const loadPending = async () => {
+    if (!projectId) return;
+    setLoadingPending(true);
+    try {
+      const invites = await MembersApi.pendingInvites(projectId);
+      setPending(invites);
+    } catch (err: any) {
+      setError(err.message ?? 'Failed to load pending invites');
+    } finally {
+      setLoadingPending(false);
+    }
+  };
+
   useEffect(() => {
     load();
+    loadPending();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId]);
 
@@ -85,6 +101,7 @@ export default function Members() {
       setMessage('Invite accepted.');
       setInviteToken('');
       await load();
+      await loadPending();
     } catch (err: any) {
       setError(err.message ?? 'Accept invite failed');
     }
@@ -99,15 +116,61 @@ export default function Members() {
       {error && <div className="pill" style={{ background: '#fee2e2', color: '#991b1b' }}>{error}</div>}
       {projectId && (
         <>
-          <div className="card">
-            <strong>Accept invite</strong>
-            <div className="stack">
-              <label>Invite token (paste from shared link)</label>
-              <input value={inviteToken} onChange={(e) => setInviteToken(e.target.value)} placeholder="Paste token" />
-              <button onClick={accept} disabled={loading}>
-                {loading ? 'Working...' : 'Accept'}
-              </button>
-            </div>
+        <div className="card">
+          <strong>Accept invite</strong>
+          <div className="stack">
+            <label>Invite token (paste from shared link)</label>
+            <input value={inviteToken} onChange={(e) => setInviteToken(e.target.value)} placeholder="Paste token" />
+            <button onClick={accept} disabled={loading}>
+              {loading ? 'Working...' : 'Accept'}
+            </button>
+          </div>
+        </div>
+
+          <div className="card" style={{ marginTop: 12 }}>
+            <strong>Pending invitations</strong>
+            {loadingPending ? <p className="muted">Loading...</p> : null}
+            {!loadingPending && pending.length === 0 ? <p className="muted">No pending invites.</p> : null}
+            {pending.length > 0 && (
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Email</th>
+                    <th>Role</th>
+                    <th>Expires</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pending.map((p) => (
+                    <tr key={p.id}>
+                      <td>{p.email}</td>
+                      <td>{p.role}</td>
+                      <td className="muted">{new Date(p.expiresAtUtc).toLocaleString()}</td>
+                      <td>
+                        <button
+                          onClick={async () => {
+                            if (!projectId) return;
+                            setError(null);
+                            setMessage(null);
+                            try {
+                              await MembersApi.cancelInvite(projectId, p.id);
+                              setMessage('Invite cancelled.');
+                              await loadPending();
+                            } catch (err: any) {
+                              setError(err.message ?? 'Cancel failed');
+                            }
+                          }}
+                          style={{ background: '#b91c1c', color: '#f8fafc' }}
+                        >
+                          Cancel
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
 
           <div className="card" style={{ marginTop: 12 }}>

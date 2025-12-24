@@ -87,6 +87,8 @@ export const MembersApi = {
   changeRole: (projectId: number, userId: number, role: string) =>
     api<any>(`/projects/${projectId}/members/${userId}/role`, 'POST', { role }),
   accept: (token: string) => api<any>(`/invites/accept`, 'POST', { token }),
+  pendingInvites: (projectId: number) => api<any[]>(`/projects/${projectId}/invites`),
+  cancelInvite: (projectId: number, inviteId: number) => api<any>(`/projects/${projectId}/invites/${inviteId}`, 'DELETE'),
 };
 
 export const DocumentsApi = {

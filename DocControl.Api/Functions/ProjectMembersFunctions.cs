@@ -104,6 +104,41 @@ public sealed class ProjectMembersFunctions
         }
     }
 
+    [Function("ProjectMembers_PendingInvites")]
+    public async Task<HttpResponseData> PendingInvitesAsync(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "projects/{projectId:long}/invites")] HttpRequestData req,
+        long projectId)
+    {
+        var (ok, auth, error) = await authFactory.BindAsync(req, req.FunctionContext.CancellationToken);
+        if (!ok || auth is null) return await req.ErrorAsync(HttpStatusCode.Unauthorized, "Auth required");
+        if (!auth.MfaEnabled) return await req.ErrorAsync(HttpStatusCode.Forbidden, "MFA required");
+        if (!await IsAtLeast(projectId, auth.UserId, Roles.Owner, req.FunctionContext.CancellationToken))
+        {
+            return await req.ErrorAsync(HttpStatusCode.Forbidden, "Owner role required");
+        }
+
+        var invites = await inviteRepository.ListPendingAsync(projectId, req.FunctionContext.CancellationToken);
+        return await req.ToJsonAsync(invites, HttpStatusCode.OK, jsonOptions);
+    }
+
+    [Function("ProjectMembers_CancelInvite")]
+    public async Task<HttpResponseData> CancelInviteAsync(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "projects/{projectId:long}/invites/{inviteId:long}")] HttpRequestData req,
+        long projectId,
+        long inviteId)
+    {
+        var (ok, auth, error) = await authFactory.BindAsync(req, req.FunctionContext.CancellationToken);
+        if (!ok || auth is null) return await req.ErrorAsync(HttpStatusCode.Unauthorized, "Auth required");
+        if (!auth.MfaEnabled) return await req.ErrorAsync(HttpStatusCode.Forbidden, "MFA required");
+        if (!await IsAtLeast(projectId, auth.UserId, Roles.Owner, req.FunctionContext.CancellationToken))
+        {
+            return await req.ErrorAsync(HttpStatusCode.Forbidden, "Owner role required");
+        }
+
+        await inviteRepository.CancelAsync(projectId, inviteId, req.FunctionContext.CancellationToken);
+        return await req.ToJsonAsync(new { cancelled = inviteId }, HttpStatusCode.OK, jsonOptions);
+    }
+
     [Function("ProjectMembers_AcceptInvite")]
     public async Task<HttpResponseData> AcceptInviteAsync(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "invites/accept")] HttpRequestData req)

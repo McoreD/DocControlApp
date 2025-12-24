@@ -180,10 +180,65 @@ public sealed class ProjectInviteRepository
         return (projectId, email, role);
     }
 
+    public async Task<IReadOnlyList<ProjectInviteRecord>> ListPendingAsync(long projectId, CancellationToken cancellationToken = default)
+    {
+        var list = new List<ProjectInviteRecord>();
+        await using var conn = factory.Create();
+        await conn.OpenAsync(cancellationToken).ConfigureAwait(false);
+
+        const string sql = @"
+            SELECT Id, ProjectId, InvitedEmail, Role, ExpiresAtUtc, CreatedByUserId, CreatedAtUtc
+            FROM ProjectInvites
+            WHERE ProjectId = @projectId AND AcceptedByUserId IS NULL AND ExpiresAtUtc > now() at time zone 'utc'
+            ORDER BY CreatedAtUtc DESC;";
+
+        await using var cmd = new NpgsqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("@projectId", projectId);
+        await using var reader = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+        while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+        {
+            list.Add(new ProjectInviteRecord
+            {
+                Id = reader.GetInt64(0),
+                ProjectId = reader.GetInt64(1),
+                Email = reader.GetString(2),
+                Role = reader.GetString(3),
+                ExpiresAtUtc = reader.GetDateTime(4),
+                CreatedByUserId = reader.GetInt64(5),
+                CreatedAtUtc = reader.GetDateTime(6)
+            });
+        }
+
+        return list;
+    }
+
+    public async Task CancelAsync(long projectId, long inviteId, CancellationToken cancellationToken = default)
+    {
+        await using var conn = factory.Create();
+        await conn.OpenAsync(cancellationToken).ConfigureAwait(false);
+
+        const string sql = @"DELETE FROM ProjectInvites WHERE ProjectId = @projectId AND Id = @inviteId;";
+        await using var cmd = new NpgsqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("@projectId", projectId);
+        cmd.Parameters.AddWithValue("@inviteId", inviteId);
+        await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+    }
+
     private static string Hash(string token)
     {
         using var sha = SHA256.Create();
         var bytes = sha.ComputeHash(Encoding.UTF8.GetBytes(token));
         return Convert.ToHexString(bytes);
     }
+}
+
+public sealed record ProjectInviteRecord
+{
+    public long Id { get; init; }
+    public long ProjectId { get; init; }
+    public string Email { get; init; } = string.Empty;
+    public string Role { get; init; } = string.Empty;
+    public DateTime ExpiresAtUtc { get; init; }
+    public long CreatedByUserId { get; init; }
+    public DateTime CreatedAtUtc { get; init; }
 }
