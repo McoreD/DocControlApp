@@ -135,7 +135,7 @@ export const DocumentsApi = {
     if (opts?.take) params.set('take', String(opts.take));
     if (opts?.skip) params.set('skip', String(opts.skip));
     const suffix = params.toString();
-    return api<{ items: any[]; total: number; skip: number; take: number }>(
+    return api<any[] | { items: any[]; total: number; skip: number; take: number }>(
       `/projects/${projectId}/documents${suffix ? `?${suffix}` : ''}`
     );
   },

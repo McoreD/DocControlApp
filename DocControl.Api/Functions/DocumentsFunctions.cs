@@ -64,8 +64,7 @@ public sealed class DocumentsFunctions
         var skip = int.TryParse(query["skip"], out var s) ? Math.Max(s, 0) : 0;
 
         var docs = await documentRepository.GetFilteredAsync(projectId, l1, l2, l3, filter, take, skip, req.FunctionContext.CancellationToken);
-        var total = await documentRepository.CountFilteredAsync(projectId, l1, l2, l3, filter, req.FunctionContext.CancellationToken);
-        return await req.ToJsonAsync(new { items = docs, total, skip, take }, HttpStatusCode.OK, jsonOptions);
+        return await req.ToJsonAsync(docs, HttpStatusCode.OK, jsonOptions);
     }
 
     [Function("Documents_ExportJson")]

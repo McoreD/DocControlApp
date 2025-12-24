@@ -42,8 +42,10 @@ export default function Documents() {
     try {
       const skip = (page - 1) * pageSize;
       const data = await DocumentsApi.list(projectId, { q, take: pageSize, skip });
-      setDocs(data.items ?? []);
-      setTotal(data.total ?? 0);
+      const items = Array.isArray(data.items) ? data.items : Array.isArray(data) ? data : [];
+      const totalCount = typeof data.total === 'number' ? data.total : items.length;
+      setDocs(items);
+      setTotal(totalCount);
     } catch (err: any) {
       setError(err.message ?? 'Failed to load documents');
     } finally {
