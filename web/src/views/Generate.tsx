@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { AiApi, DocumentsApi, ProjectsApi } from '../lib/api';
+import { useEffect, useMemo, useState } from 'react';
+import { AiApi, CodesApi, DocumentsApi, ProjectsApi } from '../lib/api';
 import { useProject } from '../lib/projectContext';
 
 export default function Generate() {
@@ -19,24 +19,92 @@ export default function Generate() {
   const [loading, setLoading] = useState(false);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [levelCount, setLevelCount] = useState(3);
+  const [catalog, setCatalog] = useState<any[]>([]);
+  const [catalogLoaded, setCatalogLoaded] = useState(false);
+  const [missingDescriptions, setMissingDescriptions] = useState<Record<string, string>>({});
   const { projectId } = useProject();
 
   useEffect(() => {
     const load = async () => {
       if (!projectId) {
         setLevelCount(3);
+        setCatalog([]);
+        setCatalogLoaded(false);
         return;
       }
+      setCatalogLoaded(false);
       try {
-        const project = await ProjectsApi.get(projectId);
+        const [project, codes] = await Promise.all([
+          ProjectsApi.get(projectId),
+          CodesApi.list(projectId),
+        ]);
         const count = typeof project?.levelCount === 'number' ? project.levelCount : 3;
         setLevelCount(Math.min(Math.max(count, 1), 6));
+        setCatalog(Array.isArray(codes) ? codes : []);
+        setCatalogLoaded(true);
       } catch {
         setLevelCount(3);
+        setCatalog([]);
+        setCatalogLoaded(false);
       }
     };
     load();
   }, [projectId]);
+
+  const catalogKeys = useMemo(() => {
+    const set = new Set<string>();
+    for (const entry of catalog) {
+      const key = entry?.key ?? {};
+      const l1 = key.level1 ?? '';
+      const l2 = key.level2 ?? '';
+      const l3 = key.level3 ?? '';
+      const l4 = key.level4 ?? '';
+      const l5 = key.level5 ?? '';
+      const l6 = key.level6 ?? '';
+      const level = l6 ? 6 : l5 ? 5 : l4 ? 4 : l3 ? 3 : l2 ? 2 : 1;
+      set.add(`${level}|${l1}|${l2}|${l3}|${l4}|${l5}|${l6}`);
+    }
+    return set;
+  }, [catalog]);
+
+  const isCatalogMissing = (level: number) => {
+    const l1 = level1.trim();
+    const l2 = level2.trim();
+    const l3 = level3.trim();
+    const l4 = level4.trim();
+    const l5 = level5.trim();
+    const l6 = level6.trim();
+
+    if (level === 1 && !l1) return false;
+    if (level === 2 && (!l1 || !l2)) return false;
+    if (level === 3 && (!l1 || !l2 || !l3)) return false;
+    if (level === 4 && (!l1 || !l2 || !l3 || !l4)) return false;
+    if (level === 5 && (!l1 || !l2 || !l3 || !l4 || !l5)) return false;
+    if (level === 6 && (!l1 || !l2 || !l3 || !l4 || !l5 || !l6)) return false;
+
+    const key = `${level}|${l1}|${level >= 2 ? l2 : ''}|${level >= 3 ? l3 : ''}|${level >= 4 ? l4 : ''}|${level >= 5 ? l5 : ''}|${level >= 6 ? l6 : ''}`;
+    return !catalogKeys.has(key);
+  };
+
+  const missingLevels = catalogLoaded ? [
+    { level: 1, code: level1.trim() },
+    { level: 2, code: level2.trim() },
+    { level: 3, code: level3.trim() },
+    { level: 4, code: level4.trim() },
+    { level: 5, code: level5.trim() },
+    { level: 6, code: level6.trim() },
+  ].filter((item) => item.level <= levelCount && isCatalogMissing(item.level));
+  ] : [];
+
+  const getMissingKey = (level: number) => {
+    const l1 = level1.trim();
+    const l2 = level2.trim();
+    const l3 = level3.trim();
+    const l4 = level4.trim();
+    const l5 = level5.trim();
+    const l6 = level6.trim();
+    return `${level}|${l1}|${level >= 2 ? l2 : ''}|${level >= 3 ? l3 : ''}|${level >= 4 ? l4 : ''}|${level >= 5 ? l5 : ''}|${level >= 6 ? l6 : ''}`;
+  };
 
   const runRecommend = async () => {
     if (!projectId || !query.trim()) return;
@@ -64,6 +132,37 @@ export default function Generate() {
     setLoading(true);
     setError(null);
     try {
+      if (missingLevels.length > 0) {
+        const missingWithoutDesc = missingLevels.filter((item) => {
+          const key = getMissingKey(item.level);
+          return !missingDescriptions[key]?.trim();
+        });
+        if (missingWithoutDesc.length > 0) {
+          setError('Please provide descriptions for all new codes before generating.');
+          setLoading(false);
+          return;
+        }
+        const catalogEntries = missingLevels.map((item) => {
+          const key = getMissingKey(item.level);
+          return buildCatalogPayload(
+            item.level,
+            {
+              level1,
+              level2,
+              level3,
+              level4,
+              level5,
+              level6,
+            },
+            missingDescriptions[key] ?? ''
+          );
+        });
+        for (const entry of catalogEntries) {
+          await CodesApi.upsert(projectId, entry);
+        }
+        const refreshed = await CodesApi.list(projectId);
+        setCatalog(Array.isArray(refreshed) ? refreshed : []);
+      }
       const res = await DocumentsApi.create(projectId, {
         level1,
         level2,
@@ -140,28 +239,87 @@ export default function Generate() {
         <div className="stack">
           <strong>Generate next code</strong>
           <p className="muted">Fill in levels and free text; backend will allocate the next number.</p>
+          {missingLevels.length > 0 && (
+            <div className="pill" style={{ background: '#fef3c7', color: '#92400e' }}>
+              Generating this file name will automatically add these code(s) to the Codes catalog. Please input descriptions.
+            </div>
+          )}
           <label>Level1</label>
-          <input value={level1} onChange={(e) => setLevel1(e.target.value)} placeholder="DFT" />
+          <div className="row" style={{ gap: 8, alignItems: 'center' }}>
+            <input value={level1} onChange={(e) => setLevel1(e.target.value)} placeholder="DFT" />
+            {isCatalogMissing(1) && (
+              <input
+                value={missingDescriptions[getMissingKey(1)] ?? ''}
+                onChange={(e) => setMissingDescriptions((prev) => ({ ...prev, [getMissingKey(1)]: e.target.value }))}
+                placeholder="Level1 description"
+              />
+            )}
+          </div>
           <label>Level2</label>
-          <input value={level2} onChange={(e) => setLevel2(e.target.value)} placeholder="GOV" />
+          <div className="row" style={{ gap: 8, alignItems: 'center' }}>
+            <input value={level2} onChange={(e) => setLevel2(e.target.value)} placeholder="GOV" />
+            {isCatalogMissing(2) && (
+              <input
+                value={missingDescriptions[getMissingKey(2)] ?? ''}
+                onChange={(e) => setMissingDescriptions((prev) => ({ ...prev, [getMissingKey(2)]: e.target.value }))}
+                placeholder="Level2 description"
+              />
+            )}
+          </div>
           <label>Level3</label>
-          <input value={level3} onChange={(e) => setLevel3(e.target.value)} placeholder="REG" />
+          <div className="row" style={{ gap: 8, alignItems: 'center' }}>
+            <input value={level3} onChange={(e) => setLevel3(e.target.value)} placeholder="REG" />
+            {isCatalogMissing(3) && (
+              <input
+                value={missingDescriptions[getMissingKey(3)] ?? ''}
+                onChange={(e) => setMissingDescriptions((prev) => ({ ...prev, [getMissingKey(3)]: e.target.value }))}
+                placeholder="Level3 description"
+              />
+            )}
+          </div>
           {levelCount >= 4 && (
             <>
               <label>Level4</label>
-              <input value={level4} onChange={(e) => setLevel4(e.target.value)} placeholder="SUB" />
+              <div className="row" style={{ gap: 8, alignItems: 'center' }}>
+                <input value={level4} onChange={(e) => setLevel4(e.target.value)} placeholder="SUB" />
+                {isCatalogMissing(4) && (
+                  <input
+                    value={missingDescriptions[getMissingKey(4)] ?? ''}
+                    onChange={(e) => setMissingDescriptions((prev) => ({ ...prev, [getMissingKey(4)]: e.target.value }))}
+                    placeholder="Level4 description"
+                  />
+                )}
+              </div>
             </>
           )}
           {levelCount >= 5 && (
             <>
               <label>Level5</label>
-              <input value={level5} onChange={(e) => setLevel5(e.target.value)} placeholder="TYPE" />
+              <div className="row" style={{ gap: 8, alignItems: 'center' }}>
+                <input value={level5} onChange={(e) => setLevel5(e.target.value)} placeholder="TYPE" />
+                {isCatalogMissing(5) && (
+                  <input
+                    value={missingDescriptions[getMissingKey(5)] ?? ''}
+                    onChange={(e) => setMissingDescriptions((prev) => ({ ...prev, [getMissingKey(5)]: e.target.value }))}
+                    placeholder="Level5 description"
+                  />
+                )}
+              </div>
             </>
           )}
           {levelCount >= 6 && (
             <>
               <label>Level6</label>
-              <input value={level6} onChange={(e) => setLevel6(e.target.value)} placeholder="ITEM" />
+              <div className="row" style={{ gap: 8, alignItems: 'center' }}>
+                <input value={level6} onChange={(e) => setLevel6(e.target.value)} placeholder="ITEM" />
+                {isCatalogMissing(6) && (
+                  <input
+                    value={missingDescriptions[getMissingKey(6)] ?? ''}
+                    onChange={(e) => setMissingDescriptions((prev) => ({ ...prev, [getMissingKey(6)]: e.target.value }))}
+                    placeholder="Level6 description"
+                  />
+                )}
+              </div>
             </>
           )}
           <label>Free text</label>
@@ -184,4 +342,33 @@ export default function Generate() {
       </div>
     </div>
   );
+}
+
+function buildCatalogPayload(
+  level: number,
+  values: {
+    level1: string;
+    level2: string;
+    level3: string;
+    level4: string;
+    level5: string;
+    level6: string;
+  },
+  description: string
+) {
+  const l1 = level >= 1 ? values.level1.trim() : '';
+  const l2 = level >= 2 ? values.level2.trim() : '';
+  const l3 = level >= 3 ? values.level3.trim() : '';
+  const l4 = level >= 4 ? values.level4.trim() : '';
+  const l5 = level >= 5 ? values.level5.trim() : '';
+  const l6 = level >= 6 ? values.level6.trim() : '';
+  return {
+    level1: l1,
+    level2: l2,
+    level3: l3,
+    level4: level >= 4 ? l4 : '',
+    level5: level >= 5 ? l5 : '',
+    level6: level >= 6 ? l6 : '',
+    description: description.trim(),
+  };
 }

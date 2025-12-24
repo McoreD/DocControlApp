@@ -94,6 +94,18 @@ export const AuthApi = {
 
 export const CodesApi = {
   list: (projectId: number) => api<any[]>(`/projects/${projectId}/codes`),
+  upsert: (
+    projectId: number,
+    payload: {
+      level1: string;
+      level2: string;
+      level3: string;
+      level4?: string | null;
+      level5?: string | null;
+      level6?: string | null;
+      description?: string | null;
+    },
+  ) => api<any>(`/projects/${projectId}/codes`, 'POST', payload),
   importCsv: async (projectId: number, csv: string) => {
     const headers = defaultHeaders();
     headers['Content-Type'] = 'text/csv';

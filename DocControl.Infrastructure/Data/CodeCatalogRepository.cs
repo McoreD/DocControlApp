@@ -76,6 +76,37 @@ public sealed class CodeCatalogRepository
         return list;
     }
 
+    public async Task<bool> ExistsAsync(CodeSeriesKey key, CancellationToken cancellationToken = default)
+    {
+        var level4 = DbValue.NormalizeLevel(key.Level4);
+        var level5 = DbValue.NormalizeLevel(key.Level5);
+        var level6 = DbValue.NormalizeLevel(key.Level6);
+        await using var conn = factory.Create();
+        await conn.OpenAsync(cancellationToken).ConfigureAwait(false);
+
+        const string sql = @"
+            SELECT 1
+            FROM CodeCatalog
+            WHERE ProjectId = @ProjectId
+              AND Level1 = @Level1
+              AND Level2 = @Level2
+              AND Level3 = @Level3
+              AND (Level4 IS NOT DISTINCT FROM @Level4)
+              AND (Level5 IS NOT DISTINCT FROM @Level5)
+              AND (Level6 IS NOT DISTINCT FROM @Level6)
+            LIMIT 1;";
+        await using var cmd = new NpgsqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("@ProjectId", key.ProjectId);
+        cmd.Parameters.AddWithValue("@Level1", key.Level1);
+        cmd.Parameters.AddWithValue("@Level2", key.Level2);
+        cmd.Parameters.AddWithValue("@Level3", key.Level3);
+        cmd.Parameters.AddWithValue("@Level4", level4);
+        cmd.Parameters.AddWithValue("@Level5", level5);
+        cmd.Parameters.AddWithValue("@Level6", level6);
+        var result = await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
+        return result != null;
+    }
+
     public async Task DeleteAsync(long projectId, long catalogId, CancellationToken cancellationToken = default)
     {
         await using var conn = factory.Create();

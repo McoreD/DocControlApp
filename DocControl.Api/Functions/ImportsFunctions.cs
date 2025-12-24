@@ -17,6 +17,7 @@ public sealed class ImportsFunctions
     private readonly AuthContextFactory authFactory;
     private readonly ProjectMemberRepository memberRepository;
     private readonly CodeSeriesRepository codeSeriesRepository;
+    private readonly CodeCatalogRepository codeCatalogRepository;
     private readonly DocumentRepository documentRepository;
     private readonly CodeImportService codeImportService;
     private readonly ConfigService configService;
@@ -27,6 +28,7 @@ public sealed class ImportsFunctions
         AuthContextFactory authFactory,
         ProjectMemberRepository memberRepository,
         CodeSeriesRepository codeSeriesRepository,
+        CodeCatalogRepository codeCatalogRepository,
         DocumentRepository documentRepository,
         CodeImportService codeImportService,
         ConfigService configService,
@@ -36,6 +38,7 @@ public sealed class ImportsFunctions
         this.authFactory = authFactory;
         this.memberRepository = memberRepository;
         this.codeSeriesRepository = codeSeriesRepository;
+        this.codeCatalogRepository = codeCatalogRepository;
         this.documentRepository = documentRepository;
         this.codeImportService = codeImportService;
         this.configService = configService;
@@ -91,7 +94,7 @@ public sealed class ImportsFunctions
         var importNote = $"Imported on {now:yyyy-MM-dd HH:mm 'UTC'} by {auth.DisplayName}";
         var imported = 0;
         var errors = new List<string>();
-        var seriesCache = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
+        var catalogCache = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var entry in payload.Entries)
         {
@@ -117,14 +120,8 @@ public sealed class ImportsFunctions
                 Level5 = key.Level5,
                 Level6 = key.Level6
             };
-            var seriesKey = $"{key.Level1}|{key.Level2}|{key.Level3}|{key.Level4 ?? string.Empty}|{key.Level5 ?? string.Empty}|{key.Level6 ?? string.Empty}";
-            if (!seriesCache.TryGetValue(seriesKey, out var exists))
-            {
-                exists = await codeSeriesRepository.ExistsAsync(key, cancellationToken: req.FunctionContext.CancellationToken);
-                seriesCache[seriesKey] = exists;
-            }
-            var description = exists ? null : importNote;
-            await codeSeriesRepository.UpsertAsync(key, description, number + 1, req.FunctionContext.CancellationToken);
+            await EnsureCatalogEntriesAsync(key, config.LevelCount, importNote, catalogCache, req.FunctionContext.CancellationToken);
+            await codeSeriesRepository.UpsertAsync(key, null, number + 1, req.FunctionContext.CancellationToken);
             await documentRepository.UpsertImportedAsync(key, number, entry.FreeText ?? string.Empty, entry.FileName ?? entry.Code, auth.UserId, now, req.FunctionContext.CancellationToken);
             imported++;
         }
@@ -152,7 +149,7 @@ public sealed class ImportsFunctions
         var importNote = $"Imported on {now:yyyy-MM-dd HH:mm 'UTC'} by {auth.DisplayName}";
         var imported = 0;
         var errors = new List<string>();
-        var seriesCache = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
+        var catalogCache = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
         foreach (var line in dataLines)
         {
             var parts = line.Split(',', 2);
@@ -175,14 +172,8 @@ public sealed class ImportsFunctions
                 Level5 = key.Level5,
                 Level6 = key.Level6
             };
-            var seriesKey = $"{key.Level1}|{key.Level2}|{key.Level3}|{key.Level4 ?? string.Empty}|{key.Level5 ?? string.Empty}|{key.Level6 ?? string.Empty}";
-            if (!seriesCache.TryGetValue(seriesKey, out var exists))
-            {
-                exists = await codeSeriesRepository.ExistsAsync(key, cancellationToken: req.FunctionContext.CancellationToken);
-                seriesCache[seriesKey] = exists;
-            }
-            var description = exists ? null : importNote;
-            await codeSeriesRepository.UpsertAsync(key, description, number + 1, req.FunctionContext.CancellationToken);
+            await EnsureCatalogEntriesAsync(key, config.LevelCount, importNote, catalogCache, req.FunctionContext.CancellationToken);
+            await codeSeriesRepository.UpsertAsync(key, null, number + 1, req.FunctionContext.CancellationToken);
             await documentRepository.UpsertImportedAsync(key, number, freeText, codeRaw, auth.UserId, now, req.FunctionContext.CancellationToken);
             imported++;
         }
@@ -231,7 +222,7 @@ public sealed class ImportsFunctions
         var importNote = $"Imported on {now:yyyy-MM-dd HH:mm 'UTC'} by {auth.DisplayName}";
         var imported = 0;
         var errors = new List<string>();
-        var seriesCache = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
+        var catalogCache = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
         foreach (var entry in entries)
         {
             if (string.IsNullOrWhiteSpace(entry.Code))
@@ -254,14 +245,8 @@ public sealed class ImportsFunctions
                 Level5 = key.Level5,
                 Level6 = key.Level6
             };
-            var seriesKey = $"{key.Level1}|{key.Level2}|{key.Level3}|{key.Level4 ?? string.Empty}|{key.Level5 ?? string.Empty}|{key.Level6 ?? string.Empty}";
-            if (!seriesCache.TryGetValue(seriesKey, out var exists))
-            {
-                exists = await codeSeriesRepository.ExistsAsync(key, cancellationToken: req.FunctionContext.CancellationToken);
-                seriesCache[seriesKey] = exists;
-            }
-            var description = exists ? null : importNote;
-            await codeSeriesRepository.UpsertAsync(key, description, number + 1, req.FunctionContext.CancellationToken);
+            await EnsureCatalogEntriesAsync(key, config.LevelCount, importNote, catalogCache, req.FunctionContext.CancellationToken);
+            await codeSeriesRepository.UpsertAsync(key, null, number + 1, req.FunctionContext.CancellationToken);
             await documentRepository.UpsertImportedAsync(key, number, entry.FreeText ?? string.Empty, entry.FileName ?? entry.Code, auth.UserId, now, req.FunctionContext.CancellationToken);
             imported++;
         }
@@ -344,6 +329,43 @@ public sealed class ImportsFunctions
             return value.Substring(1, value.Length - 2).Replace("\"\"", "\"");
         }
         return value;
+    }
+
+    private async Task EnsureCatalogEntriesAsync(
+        CodeSeriesKey seriesKey,
+        int levelCount,
+        string description,
+        Dictionary<string, bool> cache,
+        CancellationToken cancellationToken)
+    {
+        var count = Math.Clamp(levelCount, 1, 6);
+        for (var level = 1; level <= count; level++)
+        {
+            var key = CreateCatalogKey(seriesKey.ProjectId, seriesKey, level);
+            var cacheKey = $"{level}|{key.Level1}|{key.Level2}|{key.Level3}|{key.Level4 ?? string.Empty}|{key.Level5 ?? string.Empty}|{key.Level6 ?? string.Empty}";
+            if (!cache.TryGetValue(cacheKey, out var exists))
+            {
+                exists = await codeCatalogRepository.ExistsAsync(key, cancellationToken).ConfigureAwait(false);
+                cache[cacheKey] = exists;
+            }
+            if (exists) continue;
+            await codeCatalogRepository.UpsertAsync(key, description, cancellationToken).ConfigureAwait(false);
+            cache[cacheKey] = true;
+        }
+    }
+
+    private static CodeSeriesKey CreateCatalogKey(long projectId, CodeSeriesKey source, int level)
+    {
+        return level switch
+        {
+            1 => new CodeSeriesKey { ProjectId = projectId, Level1 = source.Level1, Level2 = string.Empty, Level3 = string.Empty, Level4 = null, Level5 = null, Level6 = null },
+            2 => new CodeSeriesKey { ProjectId = projectId, Level1 = source.Level1, Level2 = source.Level2, Level3 = string.Empty, Level4 = null, Level5 = null, Level6 = null },
+            3 => new CodeSeriesKey { ProjectId = projectId, Level1 = source.Level1, Level2 = source.Level2, Level3 = source.Level3, Level4 = null, Level5 = null, Level6 = null },
+            4 => new CodeSeriesKey { ProjectId = projectId, Level1 = source.Level1, Level2 = source.Level2, Level3 = source.Level3, Level4 = source.Level4, Level5 = null, Level6 = null },
+            5 => new CodeSeriesKey { ProjectId = projectId, Level1 = source.Level1, Level2 = source.Level2, Level3 = source.Level3, Level4 = source.Level4, Level5 = source.Level5, Level6 = null },
+            6 => new CodeSeriesKey { ProjectId = projectId, Level1 = source.Level1, Level2 = source.Level2, Level3 = source.Level3, Level4 = source.Level4, Level5 = source.Level5, Level6 = source.Level6 },
+            _ => new CodeSeriesKey { ProjectId = projectId, Level1 = source.Level1, Level2 = source.Level2, Level3 = source.Level3, Level4 = null, Level5 = null, Level6 = null }
+        };
     }
 
     private async Task<bool> IsAtLeast(long projectId, long userId, string requiredRole, CancellationToken cancellationToken)
