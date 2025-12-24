@@ -80,6 +80,21 @@ public sealed class ConfigService
         return (!string.IsNullOrWhiteSpace(openAiEncrypted), !string.IsNullOrWhiteSpace(geminiEncrypted));
     }
 
+    public async Task<(string? openAiSuffix, string? geminiSuffix)> GetAiKeySuffixesAsync(long userId, CancellationToken cancellationToken = default)
+    {
+        var user = await userRepository.GetPasswordAuthByIdAsync(userId, cancellationToken).ConfigureAwait(false);
+        if (user?.PasswordHash is null || user.KeySalt is null)
+        {
+            return (null, null);
+        }
+
+        var protector = CreateProtector(user.PasswordHash, user.KeySalt);
+        var (openAiEncrypted, geminiEncrypted) = await userRepository.GetAiKeysEncryptedAsync(userId, cancellationToken).ConfigureAwait(false);
+        var openAiKey = string.IsNullOrWhiteSpace(openAiEncrypted) ? null : protector.Decrypt(openAiEncrypted);
+        var geminiKey = string.IsNullOrWhiteSpace(geminiEncrypted) ? null : protector.Decrypt(geminiEncrypted);
+        return (GetSuffix(openAiKey), GetSuffix(geminiKey));
+    }
+
     public async Task SaveAiSettingsAsync(
         long projectId,
         long userId,
@@ -139,5 +154,12 @@ public sealed class ConfigService
     {
         var key = PasswordHasher.DeriveEncryptionKey(passwordHash, keySalt);
         return new AesGcmSecretProtector(key);
+    }
+
+    private static string? GetSuffix(string? key)
+    {
+        if (string.IsNullOrWhiteSpace(key)) return null;
+        var trimmed = key.Trim();
+        return trimmed.Length <= 3 ? trimmed : trimmed[^3..];
     }
 }

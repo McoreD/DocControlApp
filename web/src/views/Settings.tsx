@@ -15,6 +15,8 @@ export default function Settings() {
   const [geminiKey, setGeminiKey] = useState('');
   const [hasOpenAiKey, setHasOpenAiKey] = useState(false);
   const [hasGeminiKey, setHasGeminiKey] = useState(false);
+  const [openAiKeySuffix, setOpenAiKeySuffix] = useState<string | null>(null);
+  const [geminiKeySuffix, setGeminiKeySuffix] = useState<string | null>(null);
   const [clearOpenAiKey, setClearOpenAiKey] = useState(false);
   const [clearGeminiKey, setClearGeminiKey] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -29,6 +31,8 @@ export default function Settings() {
         setAi(data.aiSettings);
         setHasOpenAiKey(data.hasOpenAiKey ?? false);
         setHasGeminiKey(data.hasGeminiKey ?? false);
+        setOpenAiKeySuffix(data.openAiKeySuffix ?? null);
+        setGeminiKeySuffix(data.geminiKeySuffix ?? null);
       } catch (err: any) {
         setError(err.message ?? 'Failed to load settings');
       }
@@ -51,6 +55,8 @@ export default function Settings() {
       setMessage('Saved');
       setHasOpenAiKey(result?.hasOpenAi ?? (!clearOpenAiKey && (hasOpenAiKey || !!openAiKey)));
       setHasGeminiKey(result?.hasGemini ?? (!clearGeminiKey && (hasGeminiKey || !!geminiKey)));
+      setOpenAiKeySuffix(result?.openAiKeySuffix ?? (clearOpenAiKey ? null : openAiKeySuffix));
+      setGeminiKeySuffix(result?.geminiKeySuffix ?? (clearGeminiKey ? null : geminiKeySuffix));
       setOpenAiKey('');
       setGeminiKey('');
       setClearOpenAiKey(false);
@@ -94,7 +100,11 @@ export default function Settings() {
                 placeholder={hasOpenAiKey ? 'Key stored' : undefined}
               />
               <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                {hasOpenAiKey && <span className="muted">Key is stored.</span>}
+                {hasOpenAiKey && (
+                  <span className="muted">
+                    Key is stored{openAiKeySuffix ? ` (...${openAiKeySuffix})` : '.'}
+                  </span>
+                )}
                 <button
                   type="button"
                   onClick={() => {
@@ -117,7 +127,11 @@ export default function Settings() {
                 placeholder={hasGeminiKey ? 'Key stored' : undefined}
               />
               <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                {hasGeminiKey && <span className="muted">Key is stored.</span>}
+                {hasGeminiKey && (
+                  <span className="muted">
+                    Key is stored{geminiKeySuffix ? ` (...${geminiKeySuffix})` : '.'}
+                  </span>
+                )}
                 <button
                   type="button"
                   onClick={() => {

@@ -49,8 +49,9 @@ public sealed class SettingsFunctions
 
         var aiSettings = await configService.LoadAiSettingsAsync(projectId, req.FunctionContext.CancellationToken).ConfigureAwait(false);
         var (hasOpenAi, hasGemini) = await configService.GetAiKeyStatusAsync(aiSettings, auth.UserId, req.FunctionContext.CancellationToken).ConfigureAwait(false);
+        var (openAiSuffix, geminiSuffix) = await configService.GetAiKeySuffixesAsync(auth.UserId, req.FunctionContext.CancellationToken).ConfigureAwait(false);
 
-        return await req.ToJsonAsync(new ProjectSettingsResponse(aiSettings, hasOpenAi, hasGemini), HttpStatusCode.OK, jsonOptions);
+        return await req.ToJsonAsync(new ProjectSettingsResponse(aiSettings, hasOpenAi, hasGemini, openAiSuffix, geminiSuffix), HttpStatusCode.OK, jsonOptions);
     }
 
     [Function("Settings_Save")]
@@ -106,11 +107,12 @@ public sealed class SettingsFunctions
         }
 
         var (hasOpenAi, hasGemini) = await configService.GetAiKeyStatusAsync(payload.AiSettings, auth.UserId, req.FunctionContext.CancellationToken).ConfigureAwait(false);
-        return await req.ToJsonAsync(new { status = "ok", hasOpenAi, hasGemini }, HttpStatusCode.OK, jsonOptions);
+        var (openAiSuffix, geminiSuffix) = await configService.GetAiKeySuffixesAsync(auth.UserId, req.FunctionContext.CancellationToken).ConfigureAwait(false);
+        return await req.ToJsonAsync(new { status = "ok", hasOpenAi, hasGemini, openAiKeySuffix = openAiSuffix, geminiKeySuffix = geminiSuffix }, HttpStatusCode.OK, jsonOptions);
     }
 }
 
-public sealed record ProjectSettingsResponse(AiSettings AiSettings, bool HasOpenAiKey, bool HasGeminiKey);
+public sealed record ProjectSettingsResponse(AiSettings AiSettings, bool HasOpenAiKey, bool HasGeminiKey, string? OpenAiKeySuffix, string? GeminiKeySuffix);
 
 public sealed record SaveProjectSettingsRequest(
     AiSettings AiSettings,
