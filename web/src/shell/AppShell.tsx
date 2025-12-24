@@ -4,7 +4,6 @@ import { useProject } from '../lib/projectContext';
 
 const links = [
   { to: '/projects', label: 'Projects' },
-  { to: '/recommend', label: 'Recommend' },
   { to: '/generate', label: 'Generate' },
   { to: '/members', label: 'Members' },
   { to: '/codes', label: 'Codes' },
