@@ -7,6 +7,7 @@ using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Npgsql;
 
 namespace DocControl.Api.Functions;
 
@@ -84,10 +85,23 @@ public sealed class ProjectMembersFunctions
 
         var role = string.IsNullOrWhiteSpace(payload.Role) ? Roles.Viewer : payload.Role;
         var expires = DateTime.UtcNow.AddDays(payload.DaysValid ?? 7);
-        var (token, inviteId) = await inviteRepository.CreateAsync(projectId, payload.Email.Trim(), role, auth.UserId, expires, req.FunctionContext.CancellationToken);
+        try
+        {
+            var (token, inviteId) = await inviteRepository.CreateAsync(projectId, payload.Email.Trim(), role, auth.UserId, expires, req.FunctionContext.CancellationToken);
 
-        // Return token (dev-time); in production send via email.
-        return await req.ToJsonAsync(new { inviteId, token, expiresAtUtc = expires }, HttpStatusCode.Created, jsonOptions);
+            // Return token (dev-time); in production send via email.
+            return await req.ToJsonAsync(new { inviteId, token, expiresAtUtc = expires }, HttpStatusCode.Created, jsonOptions);
+        }
+        catch (PostgresException ex) when (ex.SqlState == "23505") // unique_violation
+        {
+            logger.LogWarning(ex, "Duplicate invite for {Email} role {Role}", payload.Email, role);
+            return await req.ErrorAsync(HttpStatusCode.Conflict, "Invite already exists for this email and role.");
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to create invite");
+            return await req.ErrorAsync(HttpStatusCode.InternalServerError, "Failed to create invite");
+        }
     }
 
     [Function("ProjectMembers_AcceptInvite")]
