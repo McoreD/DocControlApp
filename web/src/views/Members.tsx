@@ -193,7 +193,7 @@ export default function Members() {
           <div className="card" style={{ marginTop: 12 }}>
             <strong>Members</strong>
             {!projectId && <p className="muted">Select a project to view its members.</p>}
-            <p className="muted">Members for this project{projectId ? ` (ID: ${projectId})` : ''}.</p>
+            <p className="muted">Members for {projectName ?? 'this project'}.</p>
             {loading ? <p className="muted">Loading...</p> : null}
             {!loading && members.length === 0 ? <p className="muted">No members yet.</p> : null}
             {members.length > 0 && (
