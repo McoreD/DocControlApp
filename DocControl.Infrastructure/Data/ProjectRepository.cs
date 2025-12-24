@@ -175,6 +175,23 @@ public sealed class ProjectRepository
         return null;
     }
 
+    public async Task UpdateAsync(long projectId, string name, string description, CancellationToken cancellationToken = default)
+    {
+        await using var conn = factory.Create();
+        await conn.OpenAsync(cancellationToken).ConfigureAwait(false);
+
+        const string sql = @"
+            UPDATE Projects
+            SET Name = @name,
+                Description = @description
+            WHERE Id = @projectId;";
+        await using var cmd = new NpgsqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("@projectId", projectId);
+        cmd.Parameters.AddWithValue("@name", name);
+        cmd.Parameters.AddWithValue("@description", description);
+        await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+    }
+
     public async Task<bool> IsMemberAsync(long projectId, long userId, CancellationToken cancellationToken = default)
     {
         await using var conn = factory.Create();

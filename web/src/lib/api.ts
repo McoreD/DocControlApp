@@ -73,6 +73,8 @@ export const ProjectsApi = {
       level6Length: levelLengths[5],
     }),
   get: (projectId: number) => api<any>(`/projects/${projectId}`),
+  update: (projectId: number, name: string, description: string) =>
+    api<any>(`/projects/${projectId}`, 'POST', { name, description }),
   setDefault: (projectId: number) => api<any>(`/projects/${projectId}/default`, 'POST'),
 };
 

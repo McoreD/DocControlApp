@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { MembersApi, ProjectsApi } from '../lib/api';
 import { useProject } from '../lib/projectContext';
 
@@ -11,6 +12,7 @@ type Project = {
 };
 
 export default function Projects() {
+  const navigate = useNavigate();
   const [projects, setProjects] = useState<Project[]>([]);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -96,6 +98,7 @@ export default function Projects() {
                 <th>Active</th>
                 <th>Default</th>
                 <th>Share</th>
+                <th>Edit</th>
               </tr>
             </thead>
             <tbody>
@@ -139,6 +142,9 @@ export default function Projects() {
                     >
                       Share
                     </button>
+                  </td>
+                  <td>
+                    <button onClick={() => navigate(`/projects/${p.id}`)}>Edit</button>
                   </td>
                 </tr>
               ))}

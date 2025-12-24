@@ -168,6 +168,47 @@ public sealed class ProjectsFunctions
         return await req.ToJsonAsync(new { projectId }, HttpStatusCode.OK, jsonOptions);
     }
 
+    [Function("Projects_Update")]
+    public async Task<HttpResponseData> UpdateAsync(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "projects/{projectId:long}")] HttpRequestData req,
+        long projectId)
+    {
+        var (ok, auth, _) = await authFactory.BindAsync(req, req.FunctionContext.CancellationToken);
+        if (!ok || auth is null) return await req.ErrorAsync(HttpStatusCode.Unauthorized, "Auth required");
+        if (!auth.MfaEnabled) return await req.ErrorAsync(HttpStatusCode.Forbidden, "MFA required");
+
+        var role = await memberRepository.GetRoleAsync(projectId, auth.UserId, req.FunctionContext.CancellationToken);
+        if (role is null || Roles.Compare(role, Roles.Owner) < 0)
+        {
+            return await req.ErrorAsync(HttpStatusCode.Forbidden, "Owner role required");
+        }
+
+        UpdateProjectRequest? payload;
+        try
+        {
+            payload = await JsonSerializer.DeserializeAsync<UpdateProjectRequest>(req.Body, jsonOptions, req.FunctionContext.CancellationToken);
+        }
+        catch (JsonException ex)
+        {
+            logger.LogWarning(ex, "Invalid update project payload.");
+            return await req.ErrorAsync(HttpStatusCode.BadRequest, "Invalid JSON payload.");
+        }
+
+        if (payload is null || string.IsNullOrWhiteSpace(payload.Name))
+        {
+            return await req.ErrorAsync(HttpStatusCode.BadRequest, "Name is required.");
+        }
+
+        await projectRepository.UpdateAsync(projectId, payload.Name.Trim(), payload.Description ?? string.Empty, req.FunctionContext.CancellationToken);
+        var project = await projectRepository.GetAsync(projectId, auth.UserId, req.FunctionContext.CancellationToken);
+        if (project is null)
+        {
+            return await req.ErrorAsync(HttpStatusCode.NotFound, "Project not found or access denied.");
+        }
+
+        return await req.ToJsonAsync(project, HttpStatusCode.OK, jsonOptions);
+    }
+
     private sealed record CreateProjectRequest(
         string Name,
         string? Description,
@@ -186,4 +227,6 @@ public sealed class ProjectsFunctions
         int Level4Length,
         int Level5Length,
         int Level6Length);
+
+    private sealed record UpdateProjectRequest(string Name, string? Description);
 }

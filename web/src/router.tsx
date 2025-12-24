@@ -3,6 +3,7 @@ import AppShell from './shell/AppShell';
 import RequireAuth from './shell/RequireAuth';
 import Register from './views/Register';
 import Projects from './views/Projects';
+import ProjectProperties from './views/ProjectProperties';
 import Generate from './views/Generate';
 import Codes from './views/Codes';
 import Documents from './views/Documents';
@@ -24,6 +25,7 @@ const router = createBrowserRouter([
     children: [
       { index: true, element: <Navigate to="/projects" replace /> },
       { path: 'projects', element: <Projects /> },
+      { path: 'projects/:projectId', element: <ProjectProperties /> },
       { path: 'generate', element: <Generate /> },
       { path: 'members', element: <Members /> },
       { path: 'codes', element: <Codes /> },
