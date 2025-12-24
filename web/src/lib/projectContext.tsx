@@ -25,23 +25,21 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    if (projectName) {
-      document.title = `DocControl - ${projectName}`;
-    } else {
-      document.title = 'DocControl';
-    }
-  }, [projectName]);
+    const titleSuffix = projectId ? projectName ?? `Project ${projectId}` : null;
+    document.title = titleSuffix ? `DocControl - ${titleSuffix}` : 'DocControl';
+  }, [projectId, projectName]);
 
   const setProjectId = (id: number | null, name?: string | null) => {
+    const nextName = name ?? projectName ?? (id ? `Project ${id}` : null);
     setProjectIdState(id);
-    setProjectNameState(name ?? null);
+    setProjectNameState(nextName);
     if (id === null) {
       localStorage.removeItem('dc.projectId');
       localStorage.removeItem('dc.projectName');
     } else {
       localStorage.setItem('dc.projectId', id.toString());
-      if (name) {
-        localStorage.setItem('dc.projectName', name);
+      if (nextName) {
+        localStorage.setItem('dc.projectName', nextName);
       } else {
         localStorage.removeItem('dc.projectName');
       }

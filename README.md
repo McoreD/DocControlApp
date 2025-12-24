@@ -9,7 +9,7 @@ Project tracking, document numbering, code catalog, audit log, and basic AI help
 ## Environment (Functions)
 - Configure database connection (case matters on Linux):
   - `ConnectionStrings__Db=<Npgsql connection string>` **or** `DbConnection=<Npgsql connection string>`
-- Optional: `ApiKeysPath` for AI keys (defaults to `data/apikeys.json`)
+- Optional: `ApiKeysPath` for AI keys (defaults to a writable temp path like `%HOME%/doccontrol/apikeys.json`)
 - Auth/dev flow: register first (`POST /auth/register` or via the UI) to get a user id, then pass headers `x-user-id`, `x-user-email`, `x-user-name` (UI persists these). MFA is mandatory: call `/auth/mfa/start` then `/auth/mfa/verify` (the UI also offers QR).
 
 ### Neon connection tips

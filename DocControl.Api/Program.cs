@@ -49,7 +49,15 @@ builder.Services.AddSingleton<ConfigService>();
 builder.Services.AddSingleton<IApiKeyStore>(sp =>
 {
     var config = sp.GetRequiredService<IConfiguration>();
-    var path = config["ApiKeysPath"] ?? Path.Combine(AppContext.BaseDirectory, "data", "apikeys.json");
+    // Use a writable path by default (Function app content root may be read-only).
+    var path = config["ApiKeysPath"];
+    if (string.IsNullOrWhiteSpace(path))
+    {
+        var root = Environment.GetEnvironmentVariable("HOME")
+                   ?? Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData)
+                   ?? Path.GetTempPath();
+        path = Path.Combine(root, "doccontrol", "apikeys.json");
+    }
     return new JsonFileApiKeyStore(path);
 });
 
