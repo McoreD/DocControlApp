@@ -13,8 +13,6 @@ type Member = {
 export default function Members() {
   const { projectId } = useProject();
   const [members, setMembers] = useState<Member[]>([]);
-  const [email, setEmail] = useState('');
-  const [role, setRole] = useState('Contributor');
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -51,20 +49,6 @@ export default function Members() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
-
-  const invite = async () => {
-    if (!projectId || !email.trim()) return;
-    setError(null);
-    setMessage(null);
-    try {
-      await MembersApi.invite(projectId, email.trim(), role);
-      setMessage('Invite created (token returned by API in dev).');
-      setEmail('');
-      await load();
-    } catch (err: any) {
-      setError(err.message ?? 'Invite failed');
-    }
-  };
 
   const changeRole = async (userId: number, newRole: string) => {
     if (!projectId) return;
@@ -109,27 +93,12 @@ export default function Members() {
   return (
     <div className="page">
       <h1>Members</h1>
-      <p className="muted">Invite and manage project members.</p>
+      <p className="muted">Manage project members. Invites are sent from the Projects page; paste tokens here to accept.</p>
       {!projectId && <div className="pill">Select a project first.</div>}
       {message && <div className="pill" style={{ background: '#ecfdf3', color: '#166534' }}>{message}</div>}
       {error && <div className="pill" style={{ background: '#fee2e2', color: '#991b1b' }}>{error}</div>}
       {projectId && (
         <>
-          <div className="card">
-            <div className="stack">
-              <label>Email</label>
-              <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="user@example.com" />
-              <label>Role</label>
-              <select value={role} onChange={(e) => setRole(e.target.value)}>
-                <option value="Owner">Owner</option>
-                <option value="Contributor">Contributor</option>
-                <option value="Viewer">Viewer</option>
-              </select>
-              <button onClick={invite} disabled={loading}>
-                {loading ? 'Working...' : 'Send invite'}
-              </button>
-            </div>
-          </div>
           <div className="card">
             <strong>Accept invite</strong>
             <div className="stack">
