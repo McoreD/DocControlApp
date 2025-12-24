@@ -64,7 +64,26 @@ export default function Codes() {
                 </tr>
               </thead>
               <tbody>
-                {codes.map((c) => {
+                {[...codes].sort((a, b) => {
+                  const levelA = a.key.level6 ? 6 : a.key.level5 ? 5 : a.key.level4 ? 4 : a.key.level3 ? 3 : a.key.level2 ? 2 : 1;
+                  const levelB = b.key.level6 ? 6 : b.key.level5 ? 5 : b.key.level4 ? 4 : b.key.level3 ? 3 : b.key.level2 ? 2 : 1;
+                  if (levelA !== levelB) return levelA - levelB;
+                  const codeA =
+                    levelA === 6 ? a.key.level6 :
+                    levelA === 5 ? a.key.level5 :
+                    levelA === 4 ? a.key.level4 :
+                    levelA === 3 ? a.key.level3 :
+                    levelA === 2 ? a.key.level2 :
+                    a.key.level1;
+                  const codeB =
+                    levelB === 6 ? b.key.level6 :
+                    levelB === 5 ? b.key.level5 :
+                    levelB === 4 ? b.key.level4 :
+                    levelB === 3 ? b.key.level3 :
+                    levelB === 2 ? b.key.level2 :
+                    b.key.level1;
+                  return String(codeA ?? '').localeCompare(String(codeB ?? ''), undefined, { sensitivity: 'base' });
+                }).map((c) => {
                   const level = c.key.level6 ? 6 : c.key.level5 ? 5 : c.key.level4 ? 4 : c.key.level3 ? 3 : c.key.level2 ? 2 : 1;
                   const code =
                     level === 6 ? c.key.level6 :

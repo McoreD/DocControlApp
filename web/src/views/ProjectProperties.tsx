@@ -161,7 +161,7 @@ export default function ProjectProperties() {
           </div>
 
           <div className="card" style={{ marginTop: 16 }}>
-            <h3>Code series</h3>
+            <h3>Code series ({series.length})</h3>
             {series.length === 0 ? (
               <p className="muted">No code series yet.</p>
             ) : (
@@ -173,7 +173,15 @@ export default function ProjectProperties() {
                   </tr>
                 </thead>
                 <tbody>
-                  {series.map((s) => {
+                  {[...series].sort((a, b) => {
+                    const comboA = [a.key.level1, a.key.level2, a.key.level3, a.key.level4, a.key.level5, a.key.level6]
+                      .filter((p) => p && p.length > 0)
+                      .join('-');
+                    const comboB = [b.key.level1, b.key.level2, b.key.level3, b.key.level4, b.key.level5, b.key.level6]
+                      .filter((p) => p && p.length > 0)
+                      .join('-');
+                    return comboA.localeCompare(comboB, undefined, { sensitivity: 'base' });
+                  }).map((s) => {
                     const parts = [
                       s.key.level1,
                       s.key.level2,

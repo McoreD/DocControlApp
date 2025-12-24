@@ -86,15 +86,16 @@ export default function Generate() {
     return !catalogKeys.has(key);
   };
 
-  const missingLevels = catalogLoaded ? [
-    { level: 1, code: level1.trim() },
-    { level: 2, code: level2.trim() },
-    { level: 3, code: level3.trim() },
-    { level: 4, code: level4.trim() },
-    { level: 5, code: level5.trim() },
-    { level: 6, code: level6.trim() },
-  ].filter((item) => item.level <= levelCount && isCatalogMissing(item.level));
-  ] : [];
+  const missingLevels = catalogLoaded
+    ? [
+        { level: 1, code: level1.trim() },
+        { level: 2, code: level2.trim() },
+        { level: 3, code: level3.trim() },
+        { level: 4, code: level4.trim() },
+        { level: 5, code: level5.trim() },
+        { level: 6, code: level6.trim() },
+      ].filter((item) => item.level <= levelCount && isCatalogMissing(item.level))
+    : [];
 
   const getMissingKey = (level: number) => {
     const l1 = level1.trim();
