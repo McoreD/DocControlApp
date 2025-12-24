@@ -72,6 +72,8 @@ public sealed class CodeSeriesRepository
     public async Task<IReadOnlyList<CodeSeriesRecord>> ListAsync(long projectId, CancellationToken cancellationToken = default)
     {
         var list = new List<CodeSeriesRecord>();
+        var dedup = new Dictionary<string, CodeSeriesRecord>(StringComparer.OrdinalIgnoreCase);
+        var order = new List<string>();
         await using var conn = factory.Create();
         await conn.OpenAsync(cancellationToken).ConfigureAwait(false);
 
@@ -98,7 +100,29 @@ public sealed class CodeSeriesRepository
                 NextNumber = reader.GetInt32(7)
             });
         }
-        return list;
+
+        foreach (var item in list)
+        {
+            var dedupKey = $"{item.Key.Level1}|{item.Key.Level2}|{item.Key.Level3}|{item.Key.Level4 ?? string.Empty}";
+            if (!dedup.TryGetValue(dedupKey, out var existing))
+            {
+                dedup[dedupKey] = item;
+                order.Add(dedupKey);
+                continue;
+            }
+
+            // Merge duplicates: keep earliest, but preserve max next number and any description.
+            var merged = new CodeSeriesRecord
+            {
+                Id = existing.Id,
+                Key = existing.Key,
+                Description = existing.Description ?? item.Description,
+                NextNumber = Math.Max(existing.NextNumber, item.NextNumber)
+            };
+            dedup[dedupKey] = merged;
+        }
+
+        return order.Select(k => dedup[k]).ToList();
     }
 
     public async Task DeleteAsync(long projectId, long codeSeriesId, CancellationToken cancellationToken = default)

@@ -74,6 +74,8 @@ export const CodesApi = {
 
     return res.json();
   },
+  importJson: (projectId: number, codes: any[]) => api<any>(`/projects/${projectId}/codes/import/json`, 'POST', codes),
+  exportJson: (projectId: number) => api<any[]>(`/projects/${projectId}/codes/export`),
   purge: (projectId: number) => api<{ deletedDocuments: number; deletedCodes: number }>(`/projects/${projectId}/codes/purge`, 'DELETE'),
 };
 
@@ -94,10 +96,27 @@ export const DocumentsApi = {
     projectId: number,
     payload: { level1: string; level2: string; level3: string; level4?: string; freeText?: string; extension?: string },
   ) => api<any>(`/projects/${projectId}/documents`, 'POST', payload),
+  importCsv: async (projectId: number, csv: string) => {
+    const headers = defaultHeaders();
+    headers['Content-Type'] = 'text/csv';
+    const res = await fetch(`${API_BASE}/projects/${projectId}/documents/import/csv`, {
+      method: 'POST',
+      headers,
+      body: csv,
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(`${res.status} ${res.statusText}: ${text}`);
+    }
+    return res.json();
+  },
+  importJson: (projectId: number, entries: any[]) =>
+    api<any>(`/projects/${projectId}/documents/import/json`, 'POST', entries),
   importSimple: (
     projectId: number,
     entries: { code: string; fileName?: string; freeText?: string; description?: string }[],
   ) => api<any>(`/projects/${projectId}/documents/import`, 'POST', { entries }),
+  exportJson: (projectId: number) => api<any[]>(`/projects/${projectId}/documents/export`),
   purge: (projectId: number) => api<{ deleted: number }>(`/projects/${projectId}/documents`, 'DELETE'),
 };
 

@@ -115,6 +115,103 @@ public sealed class ImportsFunctions
                 Level4 = key.Level4
             };
             await codeSeriesRepository.UpsertAsync(key, entry.Description ?? string.Empty, number, req.FunctionContext.CancellationToken);
+        await documentRepository.UpsertImportedAsync(key, number, entry.FreeText ?? string.Empty, entry.FileName ?? entry.Code, auth.UserId, now, req.FunctionContext.CancellationToken);
+            imported++;
+        }
+
+        return await req.ToJsonAsync(new { imported, errors }, HttpStatusCode.OK, jsonOptions);
+    }
+
+    [Function("Documents_ImportCsv")]
+    public async Task<HttpResponseData> ImportDocumentsCsvAsync(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "projects/{projectId:long}/documents/import/csv")] HttpRequestData req,
+        long projectId)
+    {
+        var (ok, auth, _) = await authFactory.BindAsync(req, req.FunctionContext.CancellationToken);
+        if (!ok || auth is null) return await req.ErrorAsync(HttpStatusCode.Unauthorized, "Auth required");
+        if (!auth.MfaEnabled) return await req.ErrorAsync(HttpStatusCode.Forbidden, "MFA required");
+        if (!await IsAtLeast(projectId, auth.UserId, Roles.Contributor, req.FunctionContext.CancellationToken)) return await req.ErrorAsync(HttpStatusCode.Forbidden, "Contributor role required");
+
+        var config = await configService.LoadDocumentConfigAsync(projectId, req.FunctionContext.CancellationToken).ConfigureAwait(false);
+        var csv = await new StreamReader(req.Body).ReadToEndAsync();
+        if (string.IsNullOrWhiteSpace(csv)) return await req.ErrorAsync(HttpStatusCode.BadRequest, "CSV payload empty");
+
+        var lines = csv.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+        var dataLines = lines.Length > 0 && lines[0].StartsWith("Code", StringComparison.OrdinalIgnoreCase) ? lines.Skip(1) : lines;
+        var now = DateTime.UtcNow;
+        var imported = 0;
+        var errors = new List<string>();
+        foreach (var line in dataLines)
+        {
+            var parts = line.Split(',', 2);
+            if (parts.Length < 1) continue;
+            var codeRaw = parts[0].Trim();
+            var freeText = parts.Length > 1 ? parts[1].Trim().Trim('"') : string.Empty;
+            if (string.IsNullOrWhiteSpace(codeRaw)) { errors.Add("Empty code"); continue; }
+            if (!TryParseCode(codeRaw, config, out var key, out var number, out var reason))
+            {
+                errors.Add($"{codeRaw}: {reason}");
+                continue;
+            }
+            key = new CodeSeriesKey { ProjectId = projectId, Level1 = key.Level1, Level2 = key.Level2, Level3 = key.Level3, Level4 = key.Level4 };
+            await codeSeriesRepository.UpsertAsync(key, null, number, req.FunctionContext.CancellationToken);
+            await documentRepository.UpsertImportedAsync(key, number, freeText, codeRaw, auth.UserId, now, req.FunctionContext.CancellationToken);
+            imported++;
+        }
+
+        return await req.ToJsonAsync(new { imported, errors }, HttpStatusCode.OK, jsonOptions);
+    }
+
+    [Function("Documents_ImportJson")]
+    public async Task<HttpResponseData> ImportDocumentsJsonAsync(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "projects/{projectId:long}/documents/import/json")] HttpRequestData req,
+        long projectId)
+    {
+        var (ok, auth, _) = await authFactory.BindAsync(req, req.FunctionContext.CancellationToken);
+        if (!ok || auth is null) return await req.ErrorAsync(HttpStatusCode.Unauthorized, "Auth required");
+        if (!auth.MfaEnabled) return await req.ErrorAsync(HttpStatusCode.Forbidden, "MFA required");
+        if (!await IsAtLeast(projectId, auth.UserId, Roles.Contributor, req.FunctionContext.CancellationToken)) return await req.ErrorAsync(HttpStatusCode.Forbidden, "Contributor role required");
+
+        var config = await configService.LoadDocumentConfigAsync(projectId, req.FunctionContext.CancellationToken).ConfigureAwait(false);
+        IReadOnlyList<ImportDocumentEntry>? entries = null;
+        try
+        {
+            // Accept either { entries: [...] } or raw array
+            using var doc = await JsonDocument.ParseAsync(req.Body, cancellationToken: req.FunctionContext.CancellationToken);
+            if (doc.RootElement.ValueKind == JsonValueKind.Array)
+            {
+                entries = doc.RootElement.Deserialize<IReadOnlyList<ImportDocumentEntry>>(jsonOptions);
+            }
+            else if (doc.RootElement.ValueKind == JsonValueKind.Object && doc.RootElement.TryGetProperty("entries", out var entriesProp))
+            {
+                entries = entriesProp.Deserialize<IReadOnlyList<ImportDocumentEntry>>(jsonOptions);
+            }
+        }
+        catch (JsonException ex)
+        {
+            logger.LogWarning(ex, "Invalid document import JSON payload");
+            return await req.ErrorAsync(HttpStatusCode.BadRequest, "Invalid JSON payload");
+        }
+
+        if (entries is null || entries.Count == 0) return await req.ErrorAsync(HttpStatusCode.BadRequest, "No entries");
+
+        var now = DateTime.UtcNow;
+        var imported = 0;
+        var errors = new List<string>();
+        foreach (var entry in entries)
+        {
+            if (string.IsNullOrWhiteSpace(entry.Code))
+            {
+                errors.Add("Empty code");
+                continue;
+            }
+            if (!TryParseCode(entry.Code, config, out var key, out var number, out var reason))
+            {
+                errors.Add($"{entry.Code}: {reason}");
+                continue;
+            }
+            key = new CodeSeriesKey { ProjectId = projectId, Level1 = key.Level1, Level2 = key.Level2, Level3 = key.Level3, Level4 = key.Level4 };
+            await codeSeriesRepository.UpsertAsync(key, entry.Description ?? string.Empty, number, req.FunctionContext.CancellationToken);
             await documentRepository.UpsertImportedAsync(key, number, entry.FreeText ?? string.Empty, entry.FileName ?? entry.Code, auth.UserId, now, req.FunctionContext.CancellationToken);
             imported++;
         }

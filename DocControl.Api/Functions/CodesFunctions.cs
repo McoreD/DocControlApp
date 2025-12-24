@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text.Json;
+using System.Linq;
 using DocControl.Api.Infrastructure;
 using DocControl.Core.Models;
 using DocControl.Infrastructure.Data;
@@ -117,6 +118,71 @@ public sealed class CodesFunctions
         var deletedCodes = await codeSeriesRepository.PurgeAsync(projectId, req.FunctionContext.CancellationToken).ConfigureAwait(false);
         logger.LogInformation("Purged documents {Docs} and codes {Codes} for project {Project}", deletedDocs, deletedCodes, projectId);
         return await req.ToJsonAsync(new { deletedDocuments = deletedDocs, deletedCodes }, HttpStatusCode.OK, jsonOptions);
+    }
+
+    [Function("Codes_ExportJson")]
+    public async Task<HttpResponseData> ExportAsync(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "projects/{projectId:long}/codes/export")] HttpRequestData req,
+        long projectId)
+    {
+        var (ok, auth, _) = await authFactory.BindAsync(req, req.FunctionContext.CancellationToken);
+        if (!ok || auth is null) return await req.ErrorAsync(HttpStatusCode.Unauthorized, "Auth required");
+        if (!auth.MfaEnabled) return await req.ErrorAsync(HttpStatusCode.Forbidden, "MFA required");
+        if (!await IsAtLeast(projectId, auth.UserId, Roles.Viewer, req.FunctionContext.CancellationToken)) return await req.ErrorAsync(HttpStatusCode.Forbidden, "Access denied");
+
+        var codes = await codeSeriesRepository.ListAsync(projectId, req.FunctionContext.CancellationToken);
+        var payload = codes.Select(c => new
+        {
+            c.Key.Level1,
+            c.Key.Level2,
+            c.Key.Level3,
+            c.Key.Level4,
+            c.Description,
+            c.NextNumber
+        });
+        return await req.ToJsonAsync(payload, HttpStatusCode.OK, jsonOptions);
+    }
+
+    [Function("Codes_ImportJson")]
+    public async Task<HttpResponseData> ImportJsonAsync(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "projects/{projectId:long}/codes/import/json")] HttpRequestData req,
+        long projectId)
+    {
+        var (ok, auth, _) = await authFactory.BindAsync(req, req.FunctionContext.CancellationToken);
+        if (!ok || auth is null) return await req.ErrorAsync(HttpStatusCode.Unauthorized, "Auth required");
+        if (!auth.MfaEnabled) return await req.ErrorAsync(HttpStatusCode.Forbidden, "MFA required");
+        if (!await IsAtLeast(projectId, auth.UserId, Roles.Contributor, req.FunctionContext.CancellationToken)) return await req.ErrorAsync(HttpStatusCode.Forbidden, "Contributor role required");
+
+        List<UpsertCodeRequest>? payload;
+        try
+        {
+            payload = await JsonSerializer.DeserializeAsync<List<UpsertCodeRequest>>(req.Body, jsonOptions, req.FunctionContext.CancellationToken);
+        }
+        catch (JsonException ex)
+        {
+            logger.LogWarning(ex, "Invalid code import JSON payload");
+            return await req.ErrorAsync(HttpStatusCode.BadRequest, "Invalid JSON payload");
+        }
+
+        if (payload is null || payload.Count == 0) return await req.ErrorAsync(HttpStatusCode.BadRequest, "No codes provided");
+
+        var imported = 0;
+        foreach (var p in payload)
+        {
+            if (string.IsNullOrWhiteSpace(p.Level1) || string.IsNullOrWhiteSpace(p.Level2) || string.IsNullOrWhiteSpace(p.Level3)) continue;
+            var key = new CodeSeriesKey
+            {
+                ProjectId = projectId,
+                Level1 = p.Level1.Trim(),
+                Level2 = p.Level2.Trim(),
+                Level3 = p.Level3.Trim(),
+                Level4 = string.IsNullOrWhiteSpace(p.Level4) ? null : p.Level4.Trim()
+            };
+            await codeSeriesRepository.UpsertAsync(key, p.Description, p.NextNumber, req.FunctionContext.CancellationToken);
+            imported++;
+        }
+
+        return await req.ToJsonAsync(new { imported }, HttpStatusCode.OK, jsonOptions);
     }
 
     private async Task<bool> IsAtLeast(long projectId, long userId, string requiredRole, CancellationToken cancellationToken)

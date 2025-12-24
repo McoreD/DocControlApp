@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text.Json;
 using System.Web;
+using System.Linq;
 using DocControl.Api.Infrastructure;
 using DocControl.Core.Configuration;
 using DocControl.Core.Models;
@@ -62,6 +63,28 @@ public sealed class DocumentsFunctions
 
         var docs = await documentRepository.GetFilteredAsync(projectId, l1, l2, l3, filter, 200, req.FunctionContext.CancellationToken);
         return await req.ToJsonAsync(docs, HttpStatusCode.OK, jsonOptions);
+    }
+
+    [Function("Documents_ExportJson")]
+    public async Task<HttpResponseData> ExportAsync(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "projects/{projectId:long}/documents/export")] HttpRequestData req,
+        long projectId)
+    {
+        var (ok, auth, _) = await authFactory.BindAsync(req, req.FunctionContext.CancellationToken);
+        if (!ok || auth is null) return await req.ErrorAsync(HttpStatusCode.Unauthorized, "Auth required");
+        if (!auth.MfaEnabled) return await req.ErrorAsync(HttpStatusCode.Forbidden, "MFA required");
+        if (!await IsAtLeast(projectId, auth.UserId, Roles.Viewer, req.FunctionContext.CancellationToken)) return await req.ErrorAsync(HttpStatusCode.Forbidden, "Access denied");
+
+        var config = await configService.LoadDocumentConfigAsync(projectId, req.FunctionContext.CancellationToken).ConfigureAwait(false);
+        var docs = await documentRepository.GetAllAsync(projectId, req.FunctionContext.CancellationToken).ConfigureAwait(false);
+        var payload = docs.Select(d => new
+        {
+            Code = FormatCode(d, config),
+            d.FreeText,
+            d.FileName,
+            d.CreatedAtUtc
+        });
+        return await req.ToJsonAsync(payload, HttpStatusCode.OK, jsonOptions);
     }
 
     [Function("Documents_Get")]
@@ -172,6 +195,18 @@ public sealed class DocumentsFunctions
         var role = await memberRepository.GetRoleAsync(projectId, userId, cancellationToken).ConfigureAwait(false);
         if (role is null) return false;
         return Roles.Compare(role, requiredRole) >= 0;
+    }
+
+    private static string FormatCode(DocumentRecord d, DocumentConfig config)
+    {
+        var sep = string.IsNullOrEmpty(config.Separator) ? "-" : config.Separator;
+        var padding = config.PaddingLength <= 0 ? 3 : config.PaddingLength;
+        var padded = d.Number.ToString().PadLeft(padding, '0');
+        if (string.IsNullOrWhiteSpace(d.Level4))
+        {
+            return $"{d.Level1}{sep}{d.Level2}{sep}{d.Level3}{sep}{padded}";
+        }
+        return $"{d.Level1}{sep}{d.Level2}{sep}{d.Level3}{sep}{d.Level4}{sep}{padded}";
     }
 }
 

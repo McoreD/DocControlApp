@@ -156,6 +156,24 @@ public sealed class DocumentRepository
         return list;
     }
 
+    public async Task<IReadOnlyList<DocumentRecord>> GetAllAsync(long projectId, CancellationToken cancellationToken = default)
+    {
+        var list = new List<DocumentRecord>();
+        await using var conn = factory.Create();
+        await conn.OpenAsync(cancellationToken).ConfigureAwait(false);
+
+        const string sql = @"SELECT Id, ProjectId, Level1, Level2, Level3, Level4, Number, FreeText, FileName, CreatedByUserId, CreatedAtUtc, OriginalQuery, CodeSeriesId FROM Documents WHERE ProjectId = @ProjectId ORDER BY Level1, Level2, Level3, Level4, Number;";
+        await using var cmd = new NpgsqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("@ProjectId", projectId);
+
+        await using var reader = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+        while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+        {
+            list.Add(ReadDocument(reader));
+        }
+        return list;
+    }
+
     public async Task<DocumentRecord?> GetByIdAsync(long projectId, long id, CancellationToken cancellationToken = default)
     {
         await using var conn = factory.Create();
