@@ -148,8 +148,8 @@ public sealed class ImportsFunctions
         {
             var parts = line.Split(',', 2);
             if (parts.Length < 1) continue;
-            var codeRaw = parts[0].Trim();
-            var freeText = parts.Length > 1 ? parts[1].Trim().Trim('"') : string.Empty;
+            var codeRaw = Unquote(parts[0].Trim());
+            var freeText = parts.Length > 1 ? Unquote(parts[1].Trim()) : string.Empty;
             if (string.IsNullOrWhiteSpace(codeRaw)) { errors.Add("Empty code"); continue; }
             if (!TryParseCode(codeRaw, config, out var key, out var number, out var reason))
             {
@@ -288,6 +288,16 @@ public sealed class ImportsFunctions
 
         reason = "Expected Level1-3 or Level1-4 and number";
         return false;
+    }
+
+    private static string Unquote(string value)
+    {
+        if (string.IsNullOrEmpty(value)) return value;
+        if (value.Length >= 2 && value.StartsWith('"') && value.EndsWith('"'))
+        {
+            return value.Substring(1, value.Length - 2).Replace("\"\"", "\"");
+        }
+        return value;
     }
 
     private async Task<bool> IsAtLeast(long projectId, long userId, string requiredRole, CancellationToken cancellationToken)
