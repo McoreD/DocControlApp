@@ -35,6 +35,7 @@ type CodeSeries = {
     level6?: string | null;
   };
   description?: string | null;
+  nextNumber: number;
 };
 
 export default function ProjectProperties() {
@@ -42,7 +43,7 @@ export default function ProjectProperties() {
   const navigate = useNavigate();
   const projectIdNum = projectId ? Number(projectId) : NaN;
   const [project, setProject] = useState<Project | null>(null);
-  const [codes, setCodes] = useState<CodeSeries[]>([]);
+  const [series, setSeries] = useState<CodeSeries[]>([]);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [loading, setLoading] = useState(false);
@@ -75,8 +76,8 @@ export default function ProjectProperties() {
         setProject(data);
         setName(data.name ?? '');
         setDescription(data.description ?? '');
-        const series = await CodesApi.list(projectIdNum);
-        setCodes(series ?? []);
+        const dataSeries = await CodesApi.listSeries(projectIdNum);
+        setSeries(dataSeries ?? []);
       } catch (err: any) {
         setError(err.message ?? 'Failed to load project');
       } finally {
@@ -160,33 +161,31 @@ export default function ProjectProperties() {
           </div>
 
           <div className="card" style={{ marginTop: 16 }}>
-            <h3>Previous codes</h3>
-            {codes.length === 0 ? (
-              <p className="muted">No codes yet.</p>
+            <h3>Code series</h3>
+            {series.length === 0 ? (
+              <p className="muted">No code series yet.</p>
             ) : (
               <table className="table">
                 <thead>
                   <tr>
-                    <th>Level</th>
-                    <th>Code</th>
-                    <th>Description</th>
+                    <th>Combination</th>
+                    <th>Next #</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {codes.map((c) => {
-                    const level = c.key.level6 ? 6 : c.key.level5 ? 5 : c.key.level4 ? 4 : c.key.level3 ? 3 : c.key.level2 ? 2 : 1;
-                    const code =
-                      level === 6 ? c.key.level6 :
-                      level === 5 ? c.key.level5 :
-                      level === 4 ? c.key.level4 :
-                      level === 3 ? c.key.level3 :
-                      level === 2 ? c.key.level2 :
-                      c.key.level1;
+                  {series.map((s) => {
+                    const parts = [
+                      s.key.level1,
+                      s.key.level2,
+                      s.key.level3,
+                      s.key.level4,
+                      s.key.level5,
+                      s.key.level6,
+                    ].filter((p) => p && p.length > 0);
                     return (
-                      <tr key={c.id}>
-                        <td>{level}</td>
-                        <td>{code}</td>
-                        <td className="muted">{c.description ?? ''}</td>
+                      <tr key={s.id}>
+                        <td>{parts.join('-')}</td>
+                        <td className="muted">{s.nextNumber}</td>
                       </tr>
                     );
                   })}

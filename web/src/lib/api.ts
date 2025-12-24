@@ -94,6 +94,7 @@ export const AuthApi = {
 
 export const CodesApi = {
   list: (projectId: number) => api<any[]>(`/projects/${projectId}/codes`),
+  listSeries: (projectId: number) => api<any[]>(`/projects/${projectId}/series`),
   upsert: (
     projectId: number,
     payload: {

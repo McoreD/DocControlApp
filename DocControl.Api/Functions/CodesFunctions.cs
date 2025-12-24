@@ -53,6 +53,20 @@ public sealed class CodesFunctions
         return await req.ToJsonAsync(codes, HttpStatusCode.OK, jsonOptions);
     }
 
+    [Function("CodeSeries_List")]
+    public async Task<HttpResponseData> ListSeriesAsync(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "projects/{projectId:long}/series")] HttpRequestData req,
+        long projectId)
+    {
+        var (ok, auth, _) = await authFactory.BindAsync(req, req.FunctionContext.CancellationToken);
+        if (!ok || auth is null) return await req.ErrorAsync(HttpStatusCode.Unauthorized, "Auth required");
+        if (!auth.MfaEnabled) return await req.ErrorAsync(HttpStatusCode.Forbidden, "MFA required");
+        if (!await IsAtLeast(projectId, auth.UserId, Roles.Viewer, req.FunctionContext.CancellationToken)) return await req.ErrorAsync(HttpStatusCode.Forbidden, "Access denied");
+
+        var series = await codeSeriesRepository.ListAsync(projectId, req.FunctionContext.CancellationToken);
+        return await req.ToJsonAsync(series, HttpStatusCode.OK, jsonOptions);
+    }
+
     [Function("Codes_Upsert")]
     public async Task<HttpResponseData> UpsertAsync(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "projects/{projectId:long}/codes")] HttpRequestData req,
