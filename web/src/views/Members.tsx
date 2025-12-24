@@ -111,11 +111,9 @@ export default function Members() {
     <div className="page">
       <h1>Members</h1>
       <p className="muted">Manage project members. Invites are sent from the Projects page; paste tokens here to accept.</p>
-      {!projectId && <div className="pill">Select a project first.</div>}
       {message && <div className="pill" style={{ background: '#ecfdf3', color: '#166534' }}>{message}</div>}
       {error && <div className="pill" style={{ background: '#fee2e2', color: '#991b1b' }}>{error}</div>}
-      {projectId && (
-        <>
+      <>
         <div className="card">
           <strong>Accept invite</strong>
           <div className="stack">
@@ -124,11 +122,12 @@ export default function Members() {
             <button onClick={accept} disabled={loading}>
               {loading ? 'Working...' : 'Accept'}
             </button>
+            </div>
           </div>
-        </div>
 
           <div className="card" style={{ marginTop: 12 }}>
             <strong>Pending invitations</strong>
+            {!projectId && <p className="muted">Select a project to view its pending invites.</p>}
             {loadingPending ? <p className="muted">Loading...</p> : null}
             {!loadingPending && pending.length === 0 ? <p className="muted">No pending invites.</p> : null}
             {pending.length > 0 && (
@@ -193,6 +192,7 @@ export default function Members() {
 
           <div className="card" style={{ marginTop: 12 }}>
             <strong>Members</strong>
+            {!projectId && <p className="muted">Select a project to view its members.</p>}
             <p className="muted">Members for this project{projectId ? ` (ID: ${projectId})` : ''}.</p>
             {loading ? <p className="muted">Loading...</p> : null}
             {!loading && members.length === 0 ? <p className="muted">No members yet.</p> : null}
@@ -231,8 +231,7 @@ export default function Members() {
               </table>
             )}
           </div>
-        </>
-      )}
+      </>
     </div>
   );
 }
