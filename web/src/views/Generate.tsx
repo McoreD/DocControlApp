@@ -51,8 +51,8 @@ export default function Generate() {
     load();
   }, [projectId]);
 
-  const catalogKeys = useMemo(() => {
-    const set = new Set<string>();
+  const catalogCodesByLevel = useMemo(() => {
+    const map = new Map<number, Set<string>>();
     for (const entry of catalog) {
       const key = entry?.key ?? {};
       const l1 = key.level1 ?? '';
@@ -62,9 +62,19 @@ export default function Generate() {
       const l5 = key.level5 ?? '';
       const l6 = key.level6 ?? '';
       const level = l6 ? 6 : l5 ? 5 : l4 ? 4 : l3 ? 3 : l2 ? 2 : 1;
-      set.add(`${level}|${l1}|${l2}|${l3}|${l4}|${l5}|${l6}`);
+      const code =
+        level === 6 ? l6 :
+        level === 5 ? l5 :
+        level === 4 ? l4 :
+        level === 3 ? l3 :
+        level === 2 ? l2 :
+        l1;
+      const normalized = String(code ?? '').trim().toLowerCase();
+      if (!normalized) continue;
+      if (!map.has(level)) map.set(level, new Set());
+      map.get(level)!.add(normalized);
     }
-    return set;
+    return map;
   }, [catalog]);
 
   const isCatalogMissing = (level: number) => {
@@ -82,8 +92,17 @@ export default function Generate() {
     if (level === 5 && (!l1 || !l2 || !l3 || !l4 || !l5)) return false;
     if (level === 6 && (!l1 || !l2 || !l3 || !l4 || !l5 || !l6)) return false;
 
-    const key = `${level}|${l1}|${level >= 2 ? l2 : ''}|${level >= 3 ? l3 : ''}|${level >= 4 ? l4 : ''}|${level >= 5 ? l5 : ''}|${level >= 6 ? l6 : ''}`;
-    return !catalogKeys.has(key);
+    const code =
+      level === 1 ? l1 :
+      level === 2 ? l2 :
+      level === 3 ? l3 :
+      level === 4 ? l4 :
+      level === 5 ? l5 :
+      l6;
+    const normalized = code.trim().toLowerCase();
+    if (!normalized) return false;
+    const set = catalogCodesByLevel.get(level);
+    return !set || !set.has(normalized);
   };
 
   const missingLevels = catalogLoaded
