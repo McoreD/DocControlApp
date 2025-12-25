@@ -8,6 +8,11 @@ export default function Register() {
   const navigate = useNavigate();
   const location = useLocation();
   const isDev = import.meta.env.DEV;
+  const [authMode, setAuthMode] = useState<'microsoft' | 'password'>(() => {
+    if (isDev) return 'password';
+    const stored = localStorage.getItem('dc.authMode');
+    return stored === 'password' ? 'password' : 'microsoft';
+  });
   const [mode, setMode] = useState<'register' | 'login' | 'setPassword'>('login');
   const [emailInput, setEmailInput] = useState<HTMLInputElement | null>(null);
   const [mfaInput, setMfaInput] = useState<HTMLInputElement | null>(null);
@@ -29,7 +34,7 @@ export default function Register() {
   }, [user, navigate, skipRedirect]);
 
   useEffect(() => {
-    if (isDev) return;
+    if (isDev || authMode === 'password') return;
     if (authCheckStarted.current || user) return;
     authCheckStarted.current = true;
     const check = async () => {
@@ -53,22 +58,45 @@ export default function Register() {
       }
     };
     void check();
-  }, [isDev, navigate, setUser, user]);
+  }, [authMode, isDev, navigate, setUser, user]);
 
-  if (!isDev) {
+  const setMicrosoftMode = () => {
+    localStorage.removeItem('dc.authToken');
+    localStorage.setItem('dc.authMode', 'microsoft');
+    setAuthMode('microsoft');
+  };
+
+  const setPasswordMode = () => {
+    localStorage.setItem('dc.authMode', 'password');
+    setAuthMode('password');
+  };
+
+  const storeAuthToken = (token?: string) => {
+    if (isDev) return;
+    if (token) {
+      localStorage.setItem('dc.authToken', token);
+    }
+    localStorage.setItem('dc.authMode', 'password');
+  };
+
+  if (!isDev && authMode === 'microsoft') {
     return (
       <div className="page" style={{ maxWidth: 520, margin: '80px auto' }}>
         <h1>Sign in</h1>
-        <p className="muted">Use your Microsoft account to access DocControl.</p>
+        <p className="muted">Use your Microsoft account to access DocControl, or sign in with email + MFA.</p>
         <div className="card stack" style={{ marginTop: 16 }}>
           {checkingAuth && <div className="muted">Checking sign-in status...</div>}
           <a
             className="button"
             href="/.auth/login/aad?post_login_redirect_uri=/"
             style={{ textAlign: 'center', textDecoration: 'none' }}
+            onClick={setMicrosoftMode}
           >
             Sign in with Microsoft
           </a>
+          <button type="button" onClick={setPasswordMode} style={{ background: '#334155', color: '#e2e8f0' }}>
+            Use email + MFA
+          </button>
         </div>
       </div>
     );
@@ -108,6 +136,7 @@ export default function Register() {
     setError(null);
     try {
       const registered = await AuthApi.register(email.trim(), name.trim(), password);
+      storeAuthToken(registered.authToken);
       setUser({
         id: registered.id,
         email: registered.email,
@@ -139,6 +168,7 @@ export default function Register() {
     setSkipRedirect(true);
     try {
       const registered = await AuthApi.login(email.trim(), password);
+      storeAuthToken(registered.authToken);
       setUser({
         id: registered.id,
         email: registered.email,
@@ -194,6 +224,7 @@ export default function Register() {
     setSkipRedirect(true);
     try {
       const registered = await AuthApi.setInitialPassword(email.trim(), password);
+      storeAuthToken(registered.authToken);
       setUser({
         id: registered.id,
         email: registered.email,
@@ -352,6 +383,21 @@ export default function Register() {
           </p>
         )}
       </div>
+      {!isDev && (
+        <div className="card" style={{ marginTop: 12 }}>
+          <p className="muted" style={{ margin: 0 }}>
+            Prefer Microsoft sign-in?{' '}
+            <button
+              type="button"
+              onClick={setMicrosoftMode}
+              style={{ background: 'none', border: 'none', color: '#2563eb', cursor: 'pointer', padding: 0 }}
+            >
+              Use Microsoft login
+            </button>
+            .
+          </p>
+        </div>
+      )}
     </div>
   );
 }

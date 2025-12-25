@@ -14,12 +14,18 @@ public sealed class AuthContextFactory
 {
     private readonly UserRepository userRepository;
     private readonly UserAuthRepository userAuthRepository;
+    private readonly AuthTokenService authTokenService;
     private readonly bool allowLegacyHeader;
 
-    public AuthContextFactory(UserRepository userRepository, UserAuthRepository userAuthRepository, IHostEnvironment environment)
+    public AuthContextFactory(
+        UserRepository userRepository,
+        UserAuthRepository userAuthRepository,
+        AuthTokenService authTokenService,
+        IHostEnvironment environment)
     {
         this.userRepository = userRepository;
         this.userAuthRepository = userAuthRepository;
+        this.authTokenService = authTokenService;
         allowLegacyHeader = environment.IsDevelopment();
     }
 
@@ -42,6 +48,20 @@ public sealed class AuthContextFactory
 
             await userAuthRepository.EnsureExistsAsync(user.Id, cancellationToken).ConfigureAwait(false);
             return (true, new AuthContext(user.Id, user.Email, user.DisplayName, true), null);
+        }
+
+        if (TryGetBearer(req, out var token) && authTokenService.TryValidate(token, out var userId, out var email))
+        {
+            var user = await userRepository.GetByIdAsync(userId, cancellationToken).ConfigureAwait(false);
+            if (user is not null && string.Equals(user.Email, email, StringComparison.OrdinalIgnoreCase))
+            {
+                await userAuthRepository.EnsureExistsAsync(user.Id, cancellationToken).ConfigureAwait(false);
+                var auth = await userAuthRepository.GetAsync(user.Id, cancellationToken).ConfigureAwait(false);
+                var mfaEnabled = auth?.MfaEnabled ?? false;
+                return (true, new AuthContext(user.Id, user.Email, user.DisplayName, mfaEnabled), null);
+            }
+
+            return (false, null, await req.ErrorAsync(System.Net.HttpStatusCode.Unauthorized, "Invalid token"));
         }
 
         if (!allowLegacyHeader)
@@ -74,6 +94,22 @@ public sealed class AuthContextFactory
         }
 
         return (true, new AuthContext(legacyUser.Id, legacyUser.Email, legacyUser.DisplayName, authRecord.MfaEnabled), null);
+    }
+
+    private static bool TryGetBearer(HttpRequestData req, out string token)
+    {
+        token = string.Empty;
+        if (!req.Headers.TryGetValues("Authorization", out var values))
+        {
+            return false;
+        }
+
+        var raw = values.FirstOrDefault();
+        if (string.IsNullOrWhiteSpace(raw)) return false;
+        const string prefix = "Bearer ";
+        if (!raw.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)) return false;
+        token = raw[prefix.Length..].Trim();
+        return !string.IsNullOrWhiteSpace(token);
     }
 
     private static bool TryGetSwaPrincipal(HttpRequestData req, out ClientPrincipal principal)

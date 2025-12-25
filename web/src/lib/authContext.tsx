@@ -53,6 +53,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     if (ready) return;
+    const authMode = localStorage.getItem('dc.authMode');
+    const authToken = localStorage.getItem('dc.authToken');
+
+    if (authMode === 'password' && authToken) {
+      const syncPassword = async () => {
+        try {
+          const me = await AuthApi.me();
+          setUserState({
+            id: me.userId,
+            email: me.email,
+            name: me.displayName,
+            mfaEnabled: me.mfaEnabled,
+            needsLink: false,
+          });
+        } catch {
+          localStorage.removeItem('dc.authToken');
+          localStorage.removeItem('dc.authMode');
+          setUserState(null);
+        } finally {
+          setReady(true);
+        }
+      };
+      void syncPassword();
+      return;
+    }
+
     const syncSwa = async () => {
       try {
         const res = await fetch('/.auth/me');
@@ -101,6 +127,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       localStorage.removeItem('dc.name');
       localStorage.removeItem('dc.mfa');
     }
+    localStorage.removeItem('dc.authToken');
+    localStorage.removeItem('dc.authMode');
   };
 
   return <AuthContext.Provider value={{ user, setUser, clearUser, ready }}>{children}</AuthContext.Provider>;

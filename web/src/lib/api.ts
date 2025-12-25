@@ -1,8 +1,9 @@
 export type HttpMethod = 'GET' | 'POST' | 'DELETE';
 
-export type RegisteredUser = { id: number; email: string; displayName: string; createdAtUtc: string; mfaEnabled: boolean; requiresPasswordReset?: boolean };
+export type RegisteredUser = { id: number; email: string; displayName: string; createdAtUtc: string; mfaEnabled: boolean; requiresPasswordReset?: boolean; authToken?: string };
 export type CurrentUser = { userId: number; email: string; displayName: string; mfaEnabled: boolean; hasPassword?: boolean };
-export type LoginUser = { id: number; email: string; displayName: string; mfaEnabled: boolean; requiresPasswordReset?: boolean };
+export type LoginUser = { id: number; email: string; displayName: string; mfaEnabled: boolean; requiresPasswordReset?: boolean; authToken?: string };
+export type ProfileUpdate = { displayName: string };
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? '/api';
 
@@ -10,6 +11,12 @@ const defaultHeaders = () => {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
   };
+
+  const authMode = localStorage.getItem('dc.authMode');
+  const authToken = localStorage.getItem('dc.authToken');
+  if (!import.meta.env.DEV && authMode === 'password' && authToken) {
+    headers.Authorization = `Bearer ${authToken}`;
+  }
 
   if (import.meta.env.DEV) {
     const userId = localStorage.getItem('dc.userId');
@@ -90,6 +97,8 @@ export const AuthApi = {
     api<LoginUser>('/auth/password/initial', 'POST', { email, password }, { skipAuth: true }),
   changePassword: (currentPassword: string, newPassword: string) =>
     api<any>('/auth/password/change', 'POST', { currentPassword, newPassword }),
+  updateProfile: (displayName: string) =>
+    api<ProfileUpdate>('/auth/profile', 'POST', { displayName }),
   me: () => api<CurrentUser>('/auth/me'),
   startMfa: () => api<{ secret: string; otpauthUrl: string }>('/auth/mfa/start', 'POST'),
   verifyMfa: (code: string) => api<{ mfaEnabled: boolean }>('/auth/mfa/verify', 'POST', { code }),

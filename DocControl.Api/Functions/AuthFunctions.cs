@@ -16,6 +16,7 @@ public sealed class AuthFunctions
     private readonly UserRepository userRepository;
     private readonly UserAuthRepository userAuthRepository;
     private readonly AuthContextFactory authFactory;
+    private readonly AuthTokenService authTokenService;
     private readonly MfaService mfaService;
     private readonly JsonSerializerOptions jsonOptions;
     private readonly ILogger<AuthFunctions> logger;
@@ -24,6 +25,7 @@ public sealed class AuthFunctions
         UserRepository userRepository,
         UserAuthRepository userAuthRepository,
         AuthContextFactory authFactory,
+        AuthTokenService authTokenService,
         MfaService mfaService,
         IOptions<JsonSerializerOptions> jsonOptions,
         ILogger<AuthFunctions> logger)
@@ -31,6 +33,7 @@ public sealed class AuthFunctions
         this.userRepository = userRepository;
         this.userAuthRepository = userAuthRepository;
         this.authFactory = authFactory;
+        this.authTokenService = authTokenService;
         this.mfaService = mfaService;
         this.jsonOptions = jsonOptions.Value;
         this.logger = logger;
@@ -74,6 +77,7 @@ public sealed class AuthFunctions
         await userAuthRepository.EnsureExistsAsync(user.Id, req.FunctionContext.CancellationToken).ConfigureAwait(false);
         var auth = await userAuthRepository.GetAsync(user.Id, req.FunctionContext.CancellationToken).ConfigureAwait(false);
         var mfaEnabled = auth?.MfaEnabled ?? false;
+        var authToken = authTokenService.IssueToken(user.Id, user.Email);
         return await req.ToJsonAsync(new
         {
             user.Id,
@@ -81,6 +85,7 @@ public sealed class AuthFunctions
             user.DisplayName,
             user.CreatedAtUtc,
             MfaEnabled = mfaEnabled,
+            AuthToken = authToken,
             RequiresPasswordReset = false
         }, HttpStatusCode.Created, jsonOptions);
     }
@@ -119,6 +124,7 @@ public sealed class AuthFunctions
         await userAuthRepository.EnsureExistsAsync(user.Id, req.FunctionContext.CancellationToken).ConfigureAwait(false);
         var auth = await userAuthRepository.GetAsync(user.Id, req.FunctionContext.CancellationToken).ConfigureAwait(false);
         var mfaEnabled = auth?.MfaEnabled ?? false;
+        var authToken = authTokenService.IssueToken(user.Id, user.Email);
 
         return await req.ToJsonAsync(new
         {
@@ -126,6 +132,7 @@ public sealed class AuthFunctions
             user.Email,
             user.DisplayName,
             MfaEnabled = mfaEnabled,
+            AuthToken = authToken,
             RequiresPasswordReset = false
         }, HttpStatusCode.OK, jsonOptions);
     }
@@ -161,6 +168,7 @@ public sealed class AuthFunctions
         await userAuthRepository.EnsureExistsAsync(user.Id, req.FunctionContext.CancellationToken).ConfigureAwait(false);
         var auth = await userAuthRepository.GetAsync(user.Id, req.FunctionContext.CancellationToken).ConfigureAwait(false);
         var mfaEnabled = auth?.MfaEnabled ?? false;
+        var authToken = authTokenService.IssueToken(user.Id, user.Email);
 
         return await req.ToJsonAsync(new
         {
@@ -168,6 +176,7 @@ public sealed class AuthFunctions
             user.Email,
             user.DisplayName,
             MfaEnabled = mfaEnabled,
+            AuthToken = authToken,
             RequiresPasswordReset = false
         }, HttpStatusCode.OK, jsonOptions);
     }
@@ -230,6 +239,34 @@ public sealed class AuthFunctions
         await userRepository.SaveAiKeysEncryptedAsync(user.Id, newOpenAiEncrypted, newGeminiEncrypted, false, false, req.FunctionContext.CancellationToken).ConfigureAwait(false);
 
         return await req.ToJsonAsync(new { status = "ok" }, HttpStatusCode.OK, jsonOptions);
+    }
+
+    [Function("Auth_Profile_Update")]
+    public async Task<HttpResponseData> UpdateProfileAsync(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "auth/profile")] HttpRequestData req)
+    {
+        var (ok, auth, _) = await authFactory.BindAsync(req, req.FunctionContext.CancellationToken);
+        if (!ok || auth is null) return await req.ErrorAsync(HttpStatusCode.Unauthorized, "Auth required");
+
+        UpdateProfileRequest? payload;
+        try
+        {
+            payload = await JsonSerializer.DeserializeAsync<UpdateProfileRequest>(req.Body, jsonOptions, req.FunctionContext.CancellationToken);
+        }
+        catch (JsonException ex)
+        {
+            logger.LogWarning(ex, "Invalid update profile payload");
+            return await req.ErrorAsync(HttpStatusCode.BadRequest, "Invalid JSON payload");
+        }
+
+        if (payload is null || string.IsNullOrWhiteSpace(payload.DisplayName))
+        {
+            return await req.ErrorAsync(HttpStatusCode.BadRequest, "Display name is required");
+        }
+
+        var displayName = payload.DisplayName.Trim();
+        await userRepository.UpdateDisplayNameAsync(auth.UserId, displayName, req.FunctionContext.CancellationToken).ConfigureAwait(false);
+        return await req.ToJsonAsync(new { DisplayName = displayName }, HttpStatusCode.OK, jsonOptions);
     }
 
     [Function("Auth_Me")]
@@ -396,6 +433,7 @@ internal sealed record RegisterRequest(string Email, string? DisplayName, string
 internal sealed record LoginRequest(string Email, string Password);
 internal sealed record InitialPasswordRequest(string Email, string Password);
 internal sealed record ChangePasswordRequest(string CurrentPassword, string NewPassword);
+internal sealed record UpdateProfileRequest(string DisplayName);
 internal sealed record VerifyMfaRequest(string Code);
 internal sealed record LinkAccountRequest(string LegacyEmail, string Password, string MfaCode);
 internal sealed record TotpState(string Secret, DateTime CreatedAtUtc, DateTime? VerifiedAtUtc);

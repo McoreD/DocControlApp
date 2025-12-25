@@ -23,6 +23,8 @@ export default function AppShell() {
   const signOut = () => {
     setProjectId(null);
     clearUser();
+    localStorage.removeItem('dc.authToken');
+    localStorage.removeItem('dc.authMode');
     if (isDev) {
       navigate('/register');
       return;

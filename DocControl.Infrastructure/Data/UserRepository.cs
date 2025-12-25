@@ -216,6 +216,23 @@ public sealed class UserRepository
         await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    public async Task UpdateDisplayNameAsync(long userId, string displayName, CancellationToken cancellationToken = default)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(userId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(displayName);
+
+        await using var conn = factory.Create();
+        await conn.OpenAsync(cancellationToken).ConfigureAwait(false);
+        const string sql = @"
+            UPDATE Users
+            SET DisplayName = @name
+            WHERE Id = @id;";
+        await using var cmd = new NpgsqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("@id", userId);
+        cmd.Parameters.AddWithValue("@name", displayName);
+        await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+    }
+
     public async Task<bool> LinkAccountAsync(
         long currentUserId,
         long legacyUserId,
