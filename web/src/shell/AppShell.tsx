@@ -61,7 +61,7 @@ export default function AppShell() {
       </aside>
       <main className="content">
         <div style={{ display: 'flex', justifyContent: 'flex-end', fontSize: 12, color: '#94a3b8', marginBottom: 8 }}>
-          DocControl v{appVersion}
+          v{appVersion}
         </div>
         <Outlet />
       </main>
