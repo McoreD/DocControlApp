@@ -14,15 +14,21 @@ const defaultHeaders = () => {
 
   const authMode = localStorage.getItem('dc.authMode');
   const authToken = localStorage.getItem('dc.authToken');
-  if (!import.meta.env.DEV && authMode === 'password' && authToken) {
-    headers.Authorization = `Bearer ${authToken}`;
-  }
+  const userId = localStorage.getItem('dc.userId');
+  const email = localStorage.getItem('dc.email');
+  const name = localStorage.getItem('dc.name');
 
-  if (import.meta.env.DEV) {
-    const userId = localStorage.getItem('dc.userId');
-    const email = localStorage.getItem('dc.email');
-    const name = localStorage.getItem('dc.name');
-
+  if (!import.meta.env.DEV && authMode === 'password') {
+    if (authToken) {
+      headers.Authorization = `Bearer ${authToken}`;
+    } else if (userId && !Number.isNaN(Number(userId)) && Number(userId) > 0) {
+      headers['x-user-id'] = userId;
+      if (email) headers['x-user-email'] = email;
+      if (name) headers['x-user-name'] = name;
+    } else {
+      throw new Error('Missing legacy session. Please sign in again.');
+    }
+  } else if (import.meta.env.DEV) {
     if (!userId || Number.isNaN(Number(userId)) || Number(userId) <= 0) {
       throw new Error('User not registered. Please sign up first.');
     }

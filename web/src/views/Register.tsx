@@ -62,6 +62,10 @@ export default function Register() {
 
   const setMicrosoftMode = () => {
     localStorage.removeItem('dc.authToken');
+    localStorage.removeItem('dc.userId');
+    localStorage.removeItem('dc.email');
+    localStorage.removeItem('dc.name');
+    localStorage.removeItem('dc.mfa');
     localStorage.setItem('dc.authMode', 'microsoft');
     setAuthMode('microsoft');
   };
@@ -71,12 +75,16 @@ export default function Register() {
     setAuthMode('password');
   };
 
-  const storeAuthToken = (token?: string) => {
+  const storePasswordSession = (token: string | undefined, userId: number, userEmail: string, displayName: string, mfaEnabled: boolean) => {
     if (isDev) return;
     if (token) {
       localStorage.setItem('dc.authToken', token);
     }
     localStorage.setItem('dc.authMode', 'password');
+    localStorage.setItem('dc.userId', userId.toString());
+    localStorage.setItem('dc.email', userEmail);
+    localStorage.setItem('dc.name', displayName);
+    localStorage.setItem('dc.mfa', mfaEnabled ? 'true' : 'false');
   };
 
   if (!isDev && authMode === 'microsoft') {
@@ -136,7 +144,13 @@ export default function Register() {
     setError(null);
     try {
       const registered = await AuthApi.register(email.trim(), name.trim(), password);
-      storeAuthToken(registered.authToken);
+      storePasswordSession(
+        registered.authToken,
+        registered.id,
+        registered.email,
+        registered.displayName ?? registered.email,
+        registered.mfaEnabled
+      );
       setUser({
         id: registered.id,
         email: registered.email,
@@ -168,7 +182,13 @@ export default function Register() {
     setSkipRedirect(true);
     try {
       const registered = await AuthApi.login(email.trim(), password);
-      storeAuthToken(registered.authToken);
+      storePasswordSession(
+        registered.authToken,
+        registered.id,
+        registered.email,
+        registered.displayName ?? registered.email,
+        registered.mfaEnabled
+      );
       setUser({
         id: registered.id,
         email: registered.email,
@@ -183,6 +203,13 @@ export default function Register() {
           return;
         }
         const result = await AuthApi.verifyMfa(mfaCode.trim());
+        storePasswordSession(
+          registered.authToken,
+          registered.id,
+          registered.email,
+          registered.displayName ?? registered.email,
+          result.mfaEnabled
+        );
         setUser({
           id: registered.id,
           email: registered.email,
@@ -224,7 +251,13 @@ export default function Register() {
     setSkipRedirect(true);
     try {
       const registered = await AuthApi.setInitialPassword(email.trim(), password);
-      storeAuthToken(registered.authToken);
+      storePasswordSession(
+        registered.authToken,
+        registered.id,
+        registered.email,
+        registered.displayName ?? registered.email,
+        registered.mfaEnabled
+      );
       setUser({
         id: registered.id,
         email: registered.email,
@@ -239,6 +272,13 @@ export default function Register() {
           return;
         }
         const result = await AuthApi.verifyMfa(mfaCode.trim());
+        storePasswordSession(
+          registered.authToken,
+          registered.id,
+          registered.email,
+          registered.displayName ?? registered.email,
+          result.mfaEnabled
+        );
         setUser({
           id: registered.id,
           email: registered.email,

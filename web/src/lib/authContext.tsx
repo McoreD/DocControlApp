@@ -55,6 +55,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (ready) return;
     const authMode = localStorage.getItem('dc.authMode');
     const authToken = localStorage.getItem('dc.authToken');
+    const legacyUserId = localStorage.getItem('dc.userId');
+    const legacyEmail = localStorage.getItem('dc.email');
 
     if (authMode === 'password' && authToken) {
       const syncPassword = async () => {
@@ -76,6 +78,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       };
       void syncPassword();
+      return;
+    }
+
+    if (authMode === 'password' && legacyUserId && legacyEmail) {
+      const syncLegacy = async () => {
+        try {
+          const me = await AuthApi.me();
+          setUserState({
+            id: me.userId,
+            email: me.email,
+            name: me.displayName,
+            mfaEnabled: me.mfaEnabled,
+            needsLink: false,
+          });
+        } catch {
+          localStorage.removeItem('dc.userId');
+          localStorage.removeItem('dc.email');
+          localStorage.removeItem('dc.name');
+          localStorage.removeItem('dc.mfa');
+          localStorage.removeItem('dc.authMode');
+          setUserState(null);
+        } finally {
+          setReady(true);
+        }
+      };
+      void syncLegacy();
       return;
     }
 
@@ -121,12 +149,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const clearUser = () => {
     setUserState(null);
-    if (isDev) {
-      localStorage.removeItem('dc.userId');
-      localStorage.removeItem('dc.email');
-      localStorage.removeItem('dc.name');
-      localStorage.removeItem('dc.mfa');
-    }
+    localStorage.removeItem('dc.userId');
+    localStorage.removeItem('dc.email');
+    localStorage.removeItem('dc.name');
+    localStorage.removeItem('dc.mfa');
     localStorage.removeItem('dc.authToken');
     localStorage.removeItem('dc.authMode');
   };
