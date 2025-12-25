@@ -37,8 +37,8 @@ public sealed class AuthContextFactory
             }
 
             var displayName = GetClaimValue(principal, "name") ?? email;
-            var user = await userRepository.GetByEmailAsync(email, cancellationToken).ConfigureAwait(false)
-                       ?? await userRepository.RegisterAsync(email, displayName, cancellationToken).ConfigureAwait(false);
+        var user = await userRepository.GetByEmailAsync(email, cancellationToken).ConfigureAwait(false)
+                   ?? await userRepository.RegisterAsync(email, displayName, cancellationToken).ConfigureAwait(false);
 
             await userAuthRepository.EnsureExistsAsync(user.Id, cancellationToken).ConfigureAwait(false);
             return (true, new AuthContext(user.Id, user.Email, user.DisplayName, true), null);
@@ -60,20 +60,20 @@ public sealed class AuthContextFactory
             return (false, null, await req.ErrorAsync(System.Net.HttpStatusCode.Unauthorized, "Invalid user id"));
         }
 
-        var user = await userRepository.GetByIdAsync(userId, cancellationToken).ConfigureAwait(false);
-        if (user is null)
+        var legacyUser = await userRepository.GetByIdAsync(userId, cancellationToken).ConfigureAwait(false);
+        if (legacyUser is null)
         {
             return (false, null, await req.ErrorAsync(System.Net.HttpStatusCode.Unauthorized, "User not registered"));
         }
 
-        var authRecord = await userAuthRepository.GetAsync(user.Id, cancellationToken).ConfigureAwait(false);
+        var authRecord = await userAuthRepository.GetAsync(legacyUser.Id, cancellationToken).ConfigureAwait(false);
         if (authRecord is null)
         {
-            await userAuthRepository.EnsureExistsAsync(user.Id, cancellationToken).ConfigureAwait(false);
-            authRecord = new UserAuthRecord { UserId = user.Id, MfaEnabled = false, MfaMethodsJson = null };
+            await userAuthRepository.EnsureExistsAsync(legacyUser.Id, cancellationToken).ConfigureAwait(false);
+            authRecord = new UserAuthRecord { UserId = legacyUser.Id, MfaEnabled = false, MfaMethodsJson = null };
         }
 
-        return (true, new AuthContext(user.Id, user.Email, user.DisplayName, authRecord.MfaEnabled), null);
+        return (true, new AuthContext(legacyUser.Id, legacyUser.Email, legacyUser.DisplayName, authRecord.MfaEnabled), null);
     }
 
     private static bool TryGetSwaPrincipal(HttpRequestData req, out ClientPrincipal principal)
