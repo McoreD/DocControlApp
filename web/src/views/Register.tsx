@@ -17,6 +17,7 @@ export default function Register() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [mfaCode, setMfaCode] = useState('');
   const [loading, setLoading] = useState(false);
+  const [checkingAuth, setCheckingAuth] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [skipRedirect, setSkipRedirect] = useState(false);
 
@@ -26,12 +27,39 @@ export default function Register() {
     }
   }, [user, navigate, skipRedirect]);
 
+  useEffect(() => {
+    if (isDev) return;
+    if (checkingAuth || user) return;
+    const check = async () => {
+      setCheckingAuth(true);
+      try {
+        const res = await fetch('/.auth/me');
+        if (!res.ok) {
+          return;
+        }
+        const payload = await res.json();
+        if (!payload?.clientPrincipal?.userDetails) {
+          return;
+        }
+        const me = await AuthApi.me();
+        setUser({ id: me.userId, email: me.email, name: me.displayName, mfaEnabled: true, needsLink: !me.hasPassword });
+        navigate('/', { replace: true });
+      } catch {
+        // Ignore and show sign-in prompt.
+      } finally {
+        setCheckingAuth(false);
+      }
+    };
+    void check();
+  }, [checkingAuth, isDev, navigate, setUser, user]);
+
   if (!isDev) {
     return (
       <div className="page" style={{ maxWidth: 520, margin: '80px auto' }}>
         <h1>Sign in</h1>
         <p className="muted">Use your Microsoft account to access DocControl.</p>
         <div className="card stack" style={{ marginTop: 16 }}>
+          {checkingAuth && <div className="muted">Checking sign-in status...</div>}
           <a
             className="button"
             href="/.auth/login/aad?post_login_redirect_uri=/"
