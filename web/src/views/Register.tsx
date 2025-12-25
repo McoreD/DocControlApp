@@ -1,4 +1,4 @@
-import { type FormEvent, useEffect, useState } from 'react';
+import { type FormEvent, useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { AuthApi } from '../lib/api';
 import { useAuth } from '../lib/authContext';
@@ -20,6 +20,7 @@ export default function Register() {
   const [checkingAuth, setCheckingAuth] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [skipRedirect, setSkipRedirect] = useState(false);
+  const authCheckStarted = useRef(false);
 
   useEffect(() => {
     if (user && !skipRedirect) {
@@ -29,7 +30,8 @@ export default function Register() {
 
   useEffect(() => {
     if (isDev) return;
-    if (checkingAuth || user) return;
+    if (authCheckStarted.current || user) return;
+    authCheckStarted.current = true;
     const check = async () => {
       setCheckingAuth(true);
       try {
@@ -51,7 +53,7 @@ export default function Register() {
       }
     };
     void check();
-  }, [checkingAuth, isDev, navigate, setUser, user]);
+  }, [isDev, navigate, setUser, user]);
 
   if (!isDev) {
     return (
