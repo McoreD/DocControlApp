@@ -60,13 +60,17 @@ public sealed class UserAuthRepository
 
     public async Task SaveTotpAsync(long userId, string secret, bool verified, CancellationToken cancellationToken = default)
     {
+        var protectedSecret = ProtectSecret(secret);
+        var state = new TotpState(protectedSecret, DateTime.UtcNow, verified ? DateTime.UtcNow : null, null, null);
+        await SaveTotpStateAsync(userId, state, verified, cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task SaveTotpStateAsync(long userId, TotpState state, bool mfaEnabled, CancellationToken cancellationToken = default)
+    {
         await using var conn = factory.Create();
         await conn.OpenAsync(cancellationToken).ConfigureAwait(false);
 
-        var protectedSecret = ProtectSecret(secret);
-        var state = new TotpState(protectedSecret, DateTime.UtcNow, verified ? DateTime.UtcNow : null);
         var json = JsonSerializer.Serialize(state);
-
         const string sql = @"
             INSERT INTO UserAuth (UserId, ProviderSubject, ProviderName, MfaEnabled, MfaMethodsJson)
             VALUES (@userId, '', '', @enabled, @json)
@@ -76,7 +80,7 @@ public sealed class UserAuthRepository
 
         await using var cmd = new NpgsqlCommand(sql, conn);
         cmd.Parameters.AddWithValue("@userId", userId);
-        cmd.Parameters.AddWithValue("@enabled", verified);
+        cmd.Parameters.AddWithValue("@enabled", mfaEnabled);
         cmd.Parameters.AddWithValue("@json", (object?)json ?? DBNull.Value);
         await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
@@ -111,18 +115,20 @@ public sealed class UserAuthRepository
                 return json;
             }
 
-            if (!state.Secret.StartsWith("v1:", StringComparison.Ordinal))
+            var activeSecret = DecryptSecret(state.Secret);
+            var pendingSecret = string.IsNullOrWhiteSpace(state.PendingSecret) ? null : DecryptSecret(state.PendingSecret);
+
+            if (activeSecret is null && pendingSecret is null)
             {
                 return json;
             }
 
-            var decrypted = mfaProtector.Decrypt(state.Secret);
-            if (string.IsNullOrWhiteSpace(decrypted))
-            {
-                return json;
-            }
-
-            var updated = new TotpState(decrypted, state.CreatedAtUtc, state.VerifiedAtUtc);
+            var updated = new TotpState(
+                activeSecret ?? state.Secret,
+                state.CreatedAtUtc,
+                state.VerifiedAtUtc,
+                pendingSecret,
+                state.PendingCreatedAtUtc);
             return JsonSerializer.Serialize(updated);
         }
         catch (JsonException)
@@ -130,6 +136,19 @@ public sealed class UserAuthRepository
             return json;
         }
     }
+
+    private string? DecryptSecret(string secret)
+    {
+        if (string.IsNullOrWhiteSpace(secret)) return null;
+        if (!secret.StartsWith("v1:", StringComparison.Ordinal)) return null;
+        var decrypted = mfaProtector?.Decrypt(secret);
+        return string.IsNullOrWhiteSpace(decrypted) ? null : decrypted;
+    }
 }
 
-internal sealed record TotpState(string Secret, DateTime CreatedAtUtc, DateTime? VerifiedAtUtc);
+public sealed record TotpState(
+    string Secret,
+    DateTime CreatedAtUtc,
+    DateTime? VerifiedAtUtc,
+    string? PendingSecret,
+    DateTime? PendingCreatedAtUtc);

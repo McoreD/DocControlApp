@@ -100,9 +100,9 @@ public sealed class UserRepository
         await using var conn = factory.Create();
         await conn.OpenAsync(cancellationToken).ConfigureAwait(false);
         const string sql = @"
-            SELECT Id, Email, DisplayName, PasswordHash, PasswordSalt, KeySalt, OpenAiKeyEncrypted, GeminiKeyEncrypted
+            SELECT Id, Email, DisplayName, PasswordHash, PasswordSalt, KeySalt, OpenAiKeyEncrypted, GeminiKeyEncrypted, LegacyEmail
             FROM Users
-            WHERE Email = @email;";
+            WHERE Email = @email OR LegacyEmail = @email;";
         await using var cmd = new NpgsqlCommand(sql, conn);
         cmd.Parameters.AddWithValue("@email", email);
         await using var reader = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
@@ -117,7 +117,8 @@ public sealed class UserRepository
                 PasswordSalt = reader.IsDBNull(4) ? null : reader.GetString(4),
                 KeySalt = reader.IsDBNull(5) ? null : reader.GetString(5),
                 OpenAiKeyEncrypted = reader.IsDBNull(6) ? null : reader.GetString(6),
-                GeminiKeyEncrypted = reader.IsDBNull(7) ? null : reader.GetString(7)
+                GeminiKeyEncrypted = reader.IsDBNull(7) ? null : reader.GetString(7),
+                LegacyEmail = reader.IsDBNull(8) ? null : reader.GetString(8)
             };
         }
         return null;
@@ -128,7 +129,7 @@ public sealed class UserRepository
         await using var conn = factory.Create();
         await conn.OpenAsync(cancellationToken).ConfigureAwait(false);
         const string sql = @"
-            SELECT Id, Email, DisplayName, PasswordHash, PasswordSalt, KeySalt, OpenAiKeyEncrypted, GeminiKeyEncrypted
+            SELECT Id, Email, DisplayName, PasswordHash, PasswordSalt, KeySalt, OpenAiKeyEncrypted, GeminiKeyEncrypted, LegacyEmail
             FROM Users
             WHERE Id = @id;";
         await using var cmd = new NpgsqlCommand(sql, conn);
@@ -145,7 +146,8 @@ public sealed class UserRepository
                 PasswordSalt = reader.IsDBNull(4) ? null : reader.GetString(4),
                 KeySalt = reader.IsDBNull(5) ? null : reader.GetString(5),
                 OpenAiKeyEncrypted = reader.IsDBNull(6) ? null : reader.GetString(6),
-                GeminiKeyEncrypted = reader.IsDBNull(7) ? null : reader.GetString(7)
+                GeminiKeyEncrypted = reader.IsDBNull(7) ? null : reader.GetString(7),
+                LegacyEmail = reader.IsDBNull(8) ? null : reader.GetString(8)
             };
         }
         return null;
@@ -282,16 +284,27 @@ public sealed class UserRepository
             await deleteUser.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
         }
 
+        var currentEmail = string.Empty;
+        const string getCurrentSql = "SELECT Email FROM Users WHERE Id = @id;";
+        await using (var getCurrent = new NpgsqlCommand(getCurrentSql, conn, (NpgsqlTransaction)tx))
+        {
+            getCurrent.Parameters.AddWithValue("@id", legacyUserId);
+            var result = await getCurrent.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
+            currentEmail = result?.ToString() ?? string.Empty;
+        }
+
         const string updateSql = @"
             UPDATE Users
             SET Email = @email,
-                DisplayName = @name
+                DisplayName = @name,
+                LegacyEmail = @legacyEmail
             WHERE Id = @id;";
         await using (var updateCmd = new NpgsqlCommand(updateSql, conn, (NpgsqlTransaction)tx))
         {
             updateCmd.Parameters.AddWithValue("@id", legacyUserId);
             updateCmd.Parameters.AddWithValue("@email", newEmail);
             updateCmd.Parameters.AddWithValue("@name", newDisplayName);
+            updateCmd.Parameters.AddWithValue("@legacyEmail", currentEmail);
             await updateCmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
         }
 
@@ -326,4 +339,5 @@ public sealed class UserPasswordRecord
     public string? KeySalt { get; set; }
     public string? OpenAiKeyEncrypted { get; set; }
     public string? GeminiKeyEncrypted { get; set; }
+    public string? LegacyEmail { get; set; }
 }

@@ -14,6 +14,7 @@ import Members from './views/Members';
 import NotFound from './views/NotFound';
 import MfaSetup from './views/MfaSetup';
 import LinkAccount from './views/LinkAccount';
+import Profile from './views/Profile';
 
 const router = createBrowserRouter([
   {
@@ -33,6 +34,7 @@ const router = createBrowserRouter([
       { path: 'documents', element: <Documents /> },
       { path: 'audit', element: <Audit /> },
       { path: 'management', element: <Management /> },
+      { path: 'profile', element: <Profile /> },
       { path: 'settings', element: <Settings /> },
       { path: 'link', element: <LinkAccount /> },
       { path: 'mfa', element: <MfaSetup /> },

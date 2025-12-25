@@ -27,6 +27,7 @@ public sealed class DatabaseInitializer
             PasswordHash TEXT,
             PasswordSalt TEXT,
             KeySalt TEXT,
+            LegacyEmail TEXT,
             CreatedAtUtc TIMESTAMPTZ NOT NULL DEFAULT now()
         );
 
@@ -96,6 +97,7 @@ public sealed class DatabaseInitializer
         ALTER TABLE Users ADD COLUMN IF NOT EXISTS PasswordHash TEXT;
         ALTER TABLE Users ADD COLUMN IF NOT EXISTS PasswordSalt TEXT;
         ALTER TABLE Users ADD COLUMN IF NOT EXISTS KeySalt TEXT;
+        ALTER TABLE Users ADD COLUMN IF NOT EXISTS LegacyEmail TEXT;
         ALTER TABLE Projects ADD COLUMN IF NOT EXISTS Separator TEXT NOT NULL DEFAULT '-';
         ALTER TABLE Projects ADD COLUMN IF NOT EXISTS PaddingLength INTEGER NOT NULL DEFAULT 3;
         ALTER TABLE Projects ADD COLUMN IF NOT EXISTS LevelCount INTEGER NOT NULL DEFAULT 3;
