@@ -18,7 +18,7 @@ export default function AppShell() {
   const navigate = useNavigate();
   const { user, clearUser } = useAuth();
   const { projectId, projectName, setProjectId } = useProject();
-  const appVersion = '1.0.0';
+  const appVersion = '1.1.0';
   const isDev = import.meta.env.DEV;
 
   const signOut = () => {
