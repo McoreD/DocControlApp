@@ -4,6 +4,7 @@ using System.Text.Json.Serialization;
 using DocControl.Core.Models;
 using DocControl.Infrastructure.Data;
 using Microsoft.Azure.Functions.Worker.Http;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 
 namespace DocControl.Api.Infrastructure;
@@ -21,12 +22,14 @@ public sealed class AuthContextFactory
         UserRepository userRepository,
         UserAuthRepository userAuthRepository,
         AuthTokenService authTokenService,
-        IHostEnvironment environment)
+        IHostEnvironment environment,
+        IConfiguration configuration)
     {
         this.userRepository = userRepository;
         this.userAuthRepository = userAuthRepository;
         this.authTokenService = authTokenService;
-        allowLegacyHeader = environment.IsDevelopment();
+        allowLegacyHeader = environment.IsDevelopment()
+                            || configuration.GetValue<bool>("ALLOW_LEGACY_AUTH");
     }
 
     public async Task<(bool ok, AuthContext? context, HttpResponseData? error)> BindAsync(HttpRequestData req, CancellationToken cancellationToken = default)
