@@ -7,6 +7,7 @@ export default function Register() {
   const { user, setUser, clearUser } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const isDev = import.meta.env.DEV;
   const [mode, setMode] = useState<'register' | 'login' | 'setPassword'>('login');
   const [emailInput, setEmailInput] = useState<HTMLInputElement | null>(null);
   const [mfaInput, setMfaInput] = useState<HTMLInputElement | null>(null);
@@ -24,6 +25,24 @@ export default function Register() {
       navigate(user.mfaEnabled ? '/projects' : '/mfa', { replace: true });
     }
   }, [user, navigate, skipRedirect]);
+
+  if (!isDev) {
+    return (
+      <div className="page" style={{ maxWidth: 520, margin: '80px auto' }}>
+        <h1>Sign in</h1>
+        <p className="muted">Use your Microsoft account to access DocControl.</p>
+        <div className="card stack" style={{ marginTop: 16 }}>
+          <a
+            className="button"
+            href="/.auth/login/aad?post_login_redirect_uri=/"
+            style={{ textAlign: 'center', textDecoration: 'none' }}
+          >
+            Sign in with Microsoft
+          </a>
+        </div>
+      </div>
+    );
+  }
 
   const switchMode = (next: 'register' | 'login' | 'setPassword') => {
     setMode(next);

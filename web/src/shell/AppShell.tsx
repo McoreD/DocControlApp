@@ -18,11 +18,16 @@ export default function AppShell() {
   const { user, clearUser } = useAuth();
   const { projectId, projectName, setProjectId } = useProject();
   const appVersion = '1.0.0';
+  const isDev = import.meta.env.DEV;
 
   const signOut = () => {
     setProjectId(null);
     clearUser();
-    navigate('/register');
+    if (isDev) {
+      navigate('/register');
+      return;
+    }
+    window.location.href = '/.auth/logout?post_logout_redirect_uri=/';
   };
 
   return (

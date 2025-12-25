@@ -250,7 +250,16 @@ public sealed class AuthFunctions
         if (!ok || auth is null) return await req.ErrorAsync(HttpStatusCode.Unauthorized, "Auth required");
 
         var authRecord = await userAuthRepository.GetAsync(auth.UserId, req.FunctionContext.CancellationToken).ConfigureAwait(false);
-        return await req.ToJsonAsync(new { auth.UserId, Email = auth.Email, DisplayName = auth.DisplayName, MfaEnabled = authRecord?.MfaEnabled ?? false }, HttpStatusCode.OK, jsonOptions);
+        var passwordAuth = await userRepository.GetPasswordAuthByIdAsync(auth.UserId, req.FunctionContext.CancellationToken).ConfigureAwait(false);
+        var hasPassword = !string.IsNullOrWhiteSpace(passwordAuth?.PasswordHash);
+        return await req.ToJsonAsync(new
+        {
+            auth.UserId,
+            Email = auth.Email,
+            DisplayName = auth.DisplayName,
+            MfaEnabled = authRecord?.MfaEnabled ?? false,
+            HasPassword = hasPassword
+        }, HttpStatusCode.OK, jsonOptions);
     }
 
     [Function("Auth_Mfa_Start")]
@@ -319,6 +328,78 @@ public sealed class AuthFunctions
         await userAuthRepository.SaveTotpAsync(auth.UserId, state.Secret, verified: true, req.FunctionContext.CancellationToken).ConfigureAwait(false);
         return await req.ToJsonAsync(new { mfaEnabled = true }, HttpStatusCode.OK, jsonOptions);
     }
+
+    [Function("Auth_Link")]
+    public async Task<HttpResponseData> LinkAsync(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "auth/link")] HttpRequestData req)
+    {
+        var (ok, auth, _) = await authFactory.BindAsync(req, req.FunctionContext.CancellationToken);
+        if (!ok || auth is null) return await req.ErrorAsync(HttpStatusCode.Unauthorized, "Auth required");
+
+        LinkAccountRequest? payload;
+        try
+        {
+            payload = await JsonSerializer.DeserializeAsync<LinkAccountRequest>(req.Body, jsonOptions, req.FunctionContext.CancellationToken);
+        }
+        catch (JsonException ex)
+        {
+            logger.LogWarning(ex, "Invalid link payload");
+            return await req.ErrorAsync(HttpStatusCode.BadRequest, "Invalid JSON payload");
+        }
+
+        if (payload is null ||
+            string.IsNullOrWhiteSpace(payload.LegacyEmail) ||
+            string.IsNullOrWhiteSpace(payload.Password) ||
+            string.IsNullOrWhiteSpace(payload.MfaCode))
+        {
+            return await req.ErrorAsync(HttpStatusCode.BadRequest, "Legacy email, password, and MFA code are required");
+        }
+
+        var legacy = await userRepository.GetPasswordAuthByEmailAsync(payload.LegacyEmail.Trim(), req.FunctionContext.CancellationToken).ConfigureAwait(false);
+        if (legacy is null || string.IsNullOrWhiteSpace(legacy.PasswordHash) || string.IsNullOrWhiteSpace(legacy.PasswordSalt))
+        {
+            return await req.ErrorAsync(HttpStatusCode.Unauthorized, "Invalid credentials");
+        }
+
+        if (!PasswordHasher.Verify(payload.Password, legacy.PasswordHash, legacy.PasswordSalt))
+        {
+            return await req.ErrorAsync(HttpStatusCode.Unauthorized, "Invalid credentials");
+        }
+
+        var legacyAuth = await userAuthRepository.GetAsync(legacy.Id, req.FunctionContext.CancellationToken).ConfigureAwait(false);
+        if (legacyAuth?.MfaMethodsJson is null || !legacyAuth.MfaEnabled)
+        {
+            return await req.ErrorAsync(HttpStatusCode.Unauthorized, "Invalid credentials");
+        }
+
+        TotpState? state;
+        try
+        {
+            state = JsonSerializer.Deserialize<TotpState>(legacyAuth.MfaMethodsJson);
+        }
+        catch (JsonException)
+        {
+            state = null;
+        }
+
+        if (state is null || string.IsNullOrWhiteSpace(state.Secret))
+        {
+            return await req.ErrorAsync(HttpStatusCode.Unauthorized, "Invalid credentials");
+        }
+
+        if (!mfaService.VerifyCode(state.Secret, payload.MfaCode))
+        {
+            return await req.ErrorAsync(HttpStatusCode.Unauthorized, "Invalid credentials");
+        }
+
+        var linked = await userRepository.LinkAccountAsync(auth.UserId, legacy.Id, auth.Email, auth.DisplayName, req.FunctionContext.CancellationToken).ConfigureAwait(false);
+        if (!linked)
+        {
+            return await req.ErrorAsync(HttpStatusCode.Conflict, "Current account already has data; cannot link.");
+        }
+
+        return await req.ToJsonAsync(new { status = "ok", userId = legacy.Id }, HttpStatusCode.OK, jsonOptions);
+    }
 }
 
 internal sealed record RegisterRequest(string Email, string? DisplayName, string Password);
@@ -326,4 +407,5 @@ internal sealed record LoginRequest(string Email, string Password);
 internal sealed record InitialPasswordRequest(string Email, string Password);
 internal sealed record ChangePasswordRequest(string CurrentPassword, string NewPassword);
 internal sealed record VerifyMfaRequest(string Code);
+internal sealed record LinkAccountRequest(string LegacyEmail, string Password, string MfaCode);
 internal sealed record TotpState(string Secret, DateTime CreatedAtUtc, DateTime? VerifiedAtUtc);

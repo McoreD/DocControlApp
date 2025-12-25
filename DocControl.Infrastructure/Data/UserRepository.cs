@@ -215,6 +215,88 @@ public sealed class UserRepository
         cmd.Parameters.AddWithValue("@gemini", (object?)geminiEncrypted ?? DBNull.Value);
         await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
+
+    public async Task<bool> LinkAccountAsync(
+        long currentUserId,
+        long legacyUserId,
+        string newEmail,
+        string newDisplayName,
+        CancellationToken cancellationToken = default)
+    {
+        if (currentUserId == legacyUserId)
+        {
+            await UpdateProfileAsync(legacyUserId, newEmail, newDisplayName, cancellationToken).ConfigureAwait(false);
+            return true;
+        }
+
+        await using var conn = factory.Create();
+        await conn.OpenAsync(cancellationToken).ConfigureAwait(false);
+        await using var tx = await conn.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
+
+        const string hasRefsSql = @"
+            SELECT
+                EXISTS (SELECT 1 FROM ProjectMembers WHERE UserId = @id)
+                OR EXISTS (SELECT 1 FROM Projects WHERE CreatedByUserId = @id)
+                OR EXISTS (SELECT 1 FROM Documents WHERE CreatedByUserId = @id)
+                OR EXISTS (SELECT 1 FROM Audit WHERE CreatedByUserId = @id)
+                OR EXISTS (SELECT 1 FROM ProjectInvites WHERE CreatedByUserId = @id OR AcceptedByUserId = @id);";
+        await using (var refsCmd = new NpgsqlCommand(hasRefsSql, conn, (NpgsqlTransaction)tx))
+        {
+            refsCmd.Parameters.AddWithValue("@id", currentUserId);
+            var hasRefs = (bool)(await refsCmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false) ?? false);
+            if (hasRefs)
+            {
+                await tx.RollbackAsync(cancellationToken).ConfigureAwait(false);
+                return false;
+            }
+        }
+
+        const string deleteAuthSql = "DELETE FROM UserAuth WHERE UserId = @id;";
+        await using (var deleteAuth = new NpgsqlCommand(deleteAuthSql, conn, (NpgsqlTransaction)tx))
+        {
+            deleteAuth.Parameters.AddWithValue("@id", currentUserId);
+            await deleteAuth.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        const string deleteUserSql = "DELETE FROM Users WHERE Id = @id;";
+        await using (var deleteUser = new NpgsqlCommand(deleteUserSql, conn, (NpgsqlTransaction)tx))
+        {
+            deleteUser.Parameters.AddWithValue("@id", currentUserId);
+            await deleteUser.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        const string updateSql = @"
+            UPDATE Users
+            SET Email = @email,
+                DisplayName = @name
+            WHERE Id = @id;";
+        await using (var updateCmd = new NpgsqlCommand(updateSql, conn, (NpgsqlTransaction)tx))
+        {
+            updateCmd.Parameters.AddWithValue("@id", legacyUserId);
+            updateCmd.Parameters.AddWithValue("@email", newEmail);
+            updateCmd.Parameters.AddWithValue("@name", newDisplayName);
+            await updateCmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        await tx.CommitAsync(cancellationToken).ConfigureAwait(false);
+        return true;
+    }
+
+    private async Task UpdateProfileAsync(long userId, string email, string displayName, CancellationToken cancellationToken)
+    {
+        await using var conn = factory.Create();
+        await conn.OpenAsync(cancellationToken).ConfigureAwait(false);
+        const string sql = @"
+            UPDATE Users
+            SET Email = @email,
+                DisplayName = @name
+            WHERE Id = @id;";
+        await using var cmd = new NpgsqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("@id", userId);
+        cmd.Parameters.AddWithValue("@email", email);
+        cmd.Parameters.AddWithValue("@name", displayName);
+        await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+    }
 }
 
 public sealed class UserPasswordRecord

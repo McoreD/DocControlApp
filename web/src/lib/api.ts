@@ -1,27 +1,30 @@
 export type HttpMethod = 'GET' | 'POST' | 'DELETE';
 
 export type RegisteredUser = { id: number; email: string; displayName: string; createdAtUtc: string; mfaEnabled: boolean; requiresPasswordReset?: boolean };
-export type CurrentUser = { userId: number; email: string; displayName: string; mfaEnabled: boolean };
+export type CurrentUser = { userId: number; email: string; displayName: string; mfaEnabled: boolean; hasPassword?: boolean };
 export type LoginUser = { id: number; email: string; displayName: string; mfaEnabled: boolean; requiresPasswordReset?: boolean };
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? '/api';
 
 const defaultHeaders = () => {
-  const userId = localStorage.getItem('dc.userId');
-  const email = localStorage.getItem('dc.email');
-  const name = localStorage.getItem('dc.name');
-
-  if (!userId || Number.isNaN(Number(userId)) || Number(userId) <= 0) {
-    throw new Error('User not registered. Please sign up first.');
-  }
-
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
-    'x-user-id': userId,
   };
 
-  if (email) headers['x-user-email'] = email;
-  if (name) headers['x-user-name'] = name;
+  if (import.meta.env.DEV) {
+    const userId = localStorage.getItem('dc.userId');
+    const email = localStorage.getItem('dc.email');
+    const name = localStorage.getItem('dc.name');
+
+    if (!userId || Number.isNaN(Number(userId)) || Number(userId) <= 0) {
+      throw new Error('User not registered. Please sign up first.');
+    }
+
+    headers['x-user-id'] = userId;
+    if (email) headers['x-user-email'] = email;
+    if (name) headers['x-user-name'] = name;
+  }
+
   return headers;
 };
 
@@ -90,6 +93,8 @@ export const AuthApi = {
   me: () => api<CurrentUser>('/auth/me'),
   startMfa: () => api<{ secret: string; otpauthUrl: string }>('/auth/mfa/start', 'POST'),
   verifyMfa: (code: string) => api<{ mfaEnabled: boolean }>('/auth/mfa/verify', 'POST', { code }),
+  linkLegacy: (legacyEmail: string, password: string, mfaCode: string) =>
+    api<any>('/auth/link', 'POST', { legacyEmail, password, mfaCode }),
 };
 
 export const CodesApi = {
