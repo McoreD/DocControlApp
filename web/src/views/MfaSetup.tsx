@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import QRCode from 'qrcode';
 import { useNavigate } from 'react-router-dom';
 import { AuthApi } from '../lib/api';
 import { useAuth } from '../lib/authContext';
@@ -9,6 +10,7 @@ export default function MfaSetup() {
   const { user, setUser } = useAuth();
   const navigate = useNavigate();
   const [setup, setSetup] = useState<SetupState>(null);
+  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -28,6 +30,22 @@ export default function MfaSetup() {
       navigate('/projects', { replace: true });
     }
   }, [user, navigate]);
+
+  useEffect(() => {
+    const buildQr = async () => {
+      if (!setup?.otpauthUrl) {
+        setQrDataUrl(null);
+        return;
+      }
+      try {
+        const dataUrl = await QRCode.toDataURL(setup.otpauthUrl, { margin: 1, width: 220 });
+        setQrDataUrl(dataUrl);
+      } catch {
+        setQrDataUrl(null);
+      }
+    };
+    void buildQr();
+  }, [setup?.otpauthUrl]);
 
   const verify = async () => {
     if (!code.trim()) {
@@ -65,11 +83,15 @@ export default function MfaSetup() {
             <div style={{ marginTop: 12 }}>
               <strong>Scan QR</strong>
               <div style={{ marginTop: 8 }}>
-                <img
-                  src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(setup.otpauthUrl)}`}
-                  alt="MFA QR code"
-                  style={{ background: '#fff', padding: 8, borderRadius: 8 }}
-                />
+                {qrDataUrl ? (
+                  <img
+                    src={qrDataUrl}
+                    alt="MFA QR code"
+                    style={{ background: '#fff', padding: 8, borderRadius: 8 }}
+                  />
+                ) : (
+                  <div className="muted">QR code unavailable.</div>
+                )}
               </div>
             </div>
           </>

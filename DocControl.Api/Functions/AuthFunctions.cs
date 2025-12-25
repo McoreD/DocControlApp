@@ -297,7 +297,33 @@ public sealed class AuthFunctions
         if (!ok || auth is null) return await req.ErrorAsync(HttpStatusCode.Unauthorized, "Auth required");
 
         var secret = mfaService.GenerateSecret();
-        await userAuthRepository.SaveTotpAsync(auth.UserId, secret, verified: false, req.FunctionContext.CancellationToken).ConfigureAwait(false);
+        var existing = await userAuthRepository.GetAsync(auth.UserId, req.FunctionContext.CancellationToken).ConfigureAwait(false);
+        if (existing?.MfaEnabled == true && !string.IsNullOrWhiteSpace(existing.MfaMethodsJson))
+        {
+            TotpState? state;
+            try
+            {
+                state = JsonSerializer.Deserialize<TotpState>(existing.MfaMethodsJson);
+            }
+            catch (JsonException)
+            {
+                state = null;
+            }
+
+            if (state is not null && !string.IsNullOrWhiteSpace(state.Secret))
+            {
+                var pending = new TotpState(state.Secret, state.CreatedAtUtc, state.VerifiedAtUtc, secret, DateTime.UtcNow);
+                await userAuthRepository.SaveTotpStateAsync(auth.UserId, pending, true, req.FunctionContext.CancellationToken).ConfigureAwait(false);
+            }
+            else
+            {
+                await userAuthRepository.SaveTotpAsync(auth.UserId, secret, verified: false, req.FunctionContext.CancellationToken).ConfigureAwait(false);
+            }
+        }
+        else
+        {
+            await userAuthRepository.SaveTotpAsync(auth.UserId, secret, verified: false, req.FunctionContext.CancellationToken).ConfigureAwait(false);
+        }
 
         var uri = mfaService.BuildOtpAuthUri(secret, auth.Email);
         return await req.ToJsonAsync(new { secret, otpauthUrl = uri }, HttpStatusCode.OK, jsonOptions);
@@ -347,12 +373,30 @@ public sealed class AuthFunctions
             return await req.ErrorAsync(HttpStatusCode.BadRequest, "MFA secret missing");
         }
 
+        if (!string.IsNullOrWhiteSpace(state.PendingSecret))
+        {
+            if (!mfaService.VerifyCode(state.PendingSecret, payload.Code))
+            {
+                return await req.ErrorAsync(HttpStatusCode.BadRequest, "Invalid code");
+            }
+
+            var promoted = new TotpState(
+                state.PendingSecret,
+                state.PendingCreatedAtUtc ?? DateTime.UtcNow,
+                DateTime.UtcNow,
+                null,
+                null);
+            await userAuthRepository.SaveTotpStateAsync(auth.UserId, promoted, true, req.FunctionContext.CancellationToken).ConfigureAwait(false);
+            return await req.ToJsonAsync(new { mfaEnabled = true }, HttpStatusCode.OK, jsonOptions);
+        }
+
         if (!mfaService.VerifyCode(state.Secret, payload.Code))
         {
             return await req.ErrorAsync(HttpStatusCode.BadRequest, "Invalid code");
         }
 
-        await userAuthRepository.SaveTotpAsync(auth.UserId, state.Secret, verified: true, req.FunctionContext.CancellationToken).ConfigureAwait(false);
+        var verified = new TotpState(state.Secret, state.CreatedAtUtc, DateTime.UtcNow, null, null);
+        await userAuthRepository.SaveTotpStateAsync(auth.UserId, verified, true, req.FunctionContext.CancellationToken).ConfigureAwait(false);
         return await req.ToJsonAsync(new { mfaEnabled = true }, HttpStatusCode.OK, jsonOptions);
     }
 
