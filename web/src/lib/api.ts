@@ -21,11 +21,12 @@ const defaultHeaders = () => {
   if (!import.meta.env.DEV && authMode === 'password') {
     if (authToken) {
       headers.Authorization = `Bearer ${authToken}`;
-    } else if (userId && !Number.isNaN(Number(userId)) && Number(userId) > 0) {
+    }
+    if (userId && !Number.isNaN(Number(userId)) && Number(userId) > 0) {
       headers['x-user-id'] = userId;
       if (email) headers['x-user-email'] = email;
       if (name) headers['x-user-name'] = name;
-    } else {
+    } else if (!authToken) {
       throw new Error('Missing legacy session. Please sign in again.');
     }
   } else if (import.meta.env.DEV) {
