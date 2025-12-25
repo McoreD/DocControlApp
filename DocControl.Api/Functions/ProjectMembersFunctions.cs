@@ -89,7 +89,7 @@ public sealed class ProjectMembersFunctions
         {
             var (token, inviteId) = await inviteRepository.CreateAsync(projectId, payload.Email.Trim(), role, auth.UserId, expires, req.FunctionContext.CancellationToken);
 
-            // Return token (dev-time); in production send via email.
+            // Return token only at creation time; do not persist plaintext.
             return await req.ToJsonAsync(new { inviteId, token, expiresAtUtc = expires }, HttpStatusCode.Created, jsonOptions);
         }
         catch (PostgresException ex) when (ex.SqlState == "23505") // unique_violation

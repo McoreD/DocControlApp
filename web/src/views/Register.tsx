@@ -136,13 +136,8 @@ export default function Register() {
       }
     } catch (err: any) {
       const message = err.message ?? 'Failed to log in';
-      if (message.includes('Password not set')) {
-        switchMode('setPassword');
-        setError('Password not set. Set your password to continue.');
-      } else {
-        setError(message);
-        clearUser();
-      }
+      setError(message);
+      clearUser();
     } finally {
       setSkipRedirect(false);
       setLoading(false);
@@ -313,6 +308,19 @@ export default function Register() {
           </button>
           .
         </p>
+        {mode === 'login' && (
+          <p className="muted" style={{ marginTop: 8 }}>
+            Need to set a password?{' '}
+            <button
+              type="button"
+              onClick={() => switchMode('setPassword')}
+              style={{ background: 'none', border: 'none', color: '#2563eb', cursor: 'pointer', padding: 0 }}
+            >
+              Set password
+            </button>
+            .
+          </p>
+        )}
       </div>
     </div>
   );

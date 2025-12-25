@@ -72,14 +72,7 @@ public sealed class AiFunctions
         }
         catch (Exception ex)
         {
-            if (ex.Data.Contains("raw"))
-            {
-                logger.LogError(ex, "AI interpret failed. Raw: {Raw}", ex.Data["raw"]);
-            }
-            else
-            {
-                logger.LogError(ex, "AI interpret failed.");
-            }
+            logger.LogError(ex, "AI interpret failed.");
 
             return await req.ErrorAsync(HttpStatusCode.BadGateway, "AI interpret failed");
         }
@@ -161,14 +154,7 @@ public sealed class AiFunctions
         }
         catch (Exception ex)
         {
-            if (ex.Data.Contains("raw"))
-            {
-                logger.LogError(ex, "AI recommend failed. Raw: {Raw}", ex.Data["raw"]);
-            }
-            else
-            {
-                logger.LogError(ex, "AI recommend failed.");
-            }
+            logger.LogError(ex, "AI recommend failed.");
 
             return await req.ErrorAsync(HttpStatusCode.BadGateway, "AI recommend failed");
         }

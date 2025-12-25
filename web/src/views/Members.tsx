@@ -147,24 +147,9 @@ export default function Members() {
                       <td>{p.role}</td>
                       <td className="muted">{new Date(p.expiresAtUtc).toLocaleString()}</td>
                       <td>
-                        <button
-                          onClick={async () => {
-                            if (!p.token) {
-                              setError('No invite token available to copy.');
-                              return;
-                            }
-                            try {
-                              const url = `${window.location.origin}/members?inviteToken=${encodeURIComponent(p.token)}`;
-                              await navigator.clipboard.writeText(url);
-                              setMessage('Invite link copied.');
-                            } catch {
-                              setError('Failed to copy invite link.');
-                            }
-                          }}
-                          style={{ marginRight: 8 }}
-                        >
-                          Copy link
-                        </button>
+                        <span className="muted" style={{ marginRight: 8 }}>
+                          Link available only at invite creation.
+                        </span>
                         <button
                           onClick={async () => {
                             if (!projectId) return;

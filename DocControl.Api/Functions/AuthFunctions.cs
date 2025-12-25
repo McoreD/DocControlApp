@@ -65,7 +65,7 @@ public sealed class AuthFunctions
         var existingAuth = await userRepository.GetPasswordAuthByIdAsync(user.Id, req.FunctionContext.CancellationToken).ConfigureAwait(false);
         if (existingAuth?.PasswordHash is not null)
         {
-            return await req.ErrorAsync(HttpStatusCode.Conflict, "Account already has a password. Please log in.");
+            return await req.ErrorAsync(HttpStatusCode.Conflict, "Registration not available.");
         }
 
         var (hash, salt, keySalt) = PasswordHasher.HashPassword(payload.Password);
@@ -106,14 +106,9 @@ public sealed class AuthFunctions
         }
 
         var user = await userRepository.GetPasswordAuthByEmailAsync(payload.Email.Trim(), req.FunctionContext.CancellationToken).ConfigureAwait(false);
-        if (user is null)
+        if (user is null || string.IsNullOrWhiteSpace(user.PasswordHash) || string.IsNullOrWhiteSpace(user.PasswordSalt))
         {
             return await req.ErrorAsync(HttpStatusCode.Unauthorized, "Invalid email or password");
-        }
-
-        if (string.IsNullOrWhiteSpace(user.PasswordHash) || string.IsNullOrWhiteSpace(user.PasswordSalt))
-        {
-            return await req.ErrorAsync(HttpStatusCode.Conflict, "Password not set. Please set your password.");
         }
 
         if (!PasswordHasher.Verify(payload.Password, user.PasswordHash, user.PasswordSalt))
@@ -156,14 +151,9 @@ public sealed class AuthFunctions
         }
 
         var user = await userRepository.GetPasswordAuthByEmailAsync(payload.Email.Trim(), req.FunctionContext.CancellationToken).ConfigureAwait(false);
-        if (user is null)
+        if (user is null || !string.IsNullOrWhiteSpace(user.PasswordHash))
         {
-            return await req.ErrorAsync(HttpStatusCode.NotFound, "User not found");
-        }
-
-        if (!string.IsNullOrWhiteSpace(user.PasswordHash))
-        {
-            return await req.ErrorAsync(HttpStatusCode.Conflict, "Password already set. Please log in.");
+            return await req.ErrorAsync(HttpStatusCode.Unauthorized, "Invalid credentials");
         }
 
         var (hash, salt, keySalt) = PasswordHasher.HashPassword(payload.Password);

@@ -89,7 +89,7 @@ public sealed class DatabaseInitializer
             UNIQUE(ProjectId, InvitedEmail, Role)
         );
 
-        -- Ensure plaintext token column exists for owner-side retrieval (hash still used for validation)
+        -- Plaintext token column retained for legacy compatibility. New invites only store hashes.
         ALTER TABLE ProjectInvites ADD COLUMN IF NOT EXISTS InviteToken TEXT;
         ALTER TABLE Users ADD COLUMN IF NOT EXISTS OpenAiKeyEncrypted TEXT;
         ALTER TABLE Users ADD COLUMN IF NOT EXISTS GeminiKeyEncrypted TEXT;

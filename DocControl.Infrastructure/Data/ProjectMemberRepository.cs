@@ -141,8 +141,8 @@ public sealed class ProjectInviteRepository
         await conn.OpenAsync(cancellationToken).ConfigureAwait(false);
 
         const string sql = @"
-            INSERT INTO ProjectInvites (ProjectId, InvitedEmail, Role, InviteTokenHash, InviteToken, ExpiresAtUtc, CreatedByUserId, CreatedAtUtc)
-            VALUES (@projectId, @email, @role, @hash, @token, @expires, @createdBy, now() at time zone 'utc')
+            INSERT INTO ProjectInvites (ProjectId, InvitedEmail, Role, InviteTokenHash, ExpiresAtUtc, CreatedByUserId, CreatedAtUtc)
+            VALUES (@projectId, @email, @role, @hash, @expires, @createdBy, now() at time zone 'utc')
             RETURNING Id;";
 
         await using var cmd = new NpgsqlCommand(sql, conn);
@@ -150,7 +150,6 @@ public sealed class ProjectInviteRepository
         cmd.Parameters.AddWithValue("@email", email);
         cmd.Parameters.AddWithValue("@role", role);
         cmd.Parameters.AddWithValue("@hash", hash);
-        cmd.Parameters.AddWithValue("@token", token);
         cmd.Parameters.AddWithValue("@expires", expiresAtUtc);
         cmd.Parameters.AddWithValue("@createdBy", createdByUserId);
 
@@ -228,7 +227,7 @@ public sealed class ProjectInviteRepository
         await conn.OpenAsync(cancellationToken).ConfigureAwait(false);
 
         const string sql = @"
-            SELECT Id, ProjectId, InvitedEmail, Role, ExpiresAtUtc, CreatedByUserId, CreatedAtUtc, InviteToken
+            SELECT Id, ProjectId, InvitedEmail, Role, ExpiresAtUtc, CreatedByUserId, CreatedAtUtc
             FROM ProjectInvites
             WHERE ProjectId = @projectId AND AcceptedByUserId IS NULL AND ExpiresAtUtc > now() at time zone 'utc'
             ORDER BY CreatedAtUtc DESC;";
@@ -247,7 +246,7 @@ public sealed class ProjectInviteRepository
                 ExpiresAtUtc = reader.GetDateTime(4),
                 CreatedByUserId = reader.GetInt64(5),
                 CreatedAtUtc = reader.GetDateTime(6),
-                Token = reader.IsDBNull(7) ? null : reader.GetString(7)
+                Token = null
             });
         }
 
