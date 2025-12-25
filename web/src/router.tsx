@@ -1,5 +1,6 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 import AppShell from './shell/AppShell';
+import { navLinks } from './shell/navLinks';
 import RequireAuth from './shell/RequireAuth';
 import Register from './views/Register';
 import Projects from './views/Projects';
@@ -25,7 +26,7 @@ const router = createBrowserRouter([
       </RequireAuth>
     ),
     children: [
-      { index: true, element: <Navigate to="/projects" replace /> },
+      { index: true, element: <Navigate to={navLinks[0]?.to ?? '/projects'} replace /> },
       { path: 'projects', element: <Projects /> },
       { path: 'projects/:projectId', element: <ProjectProperties /> },
       { path: 'generate', element: <Generate /> },

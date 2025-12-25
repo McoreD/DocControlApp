@@ -1,18 +1,7 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../lib/authContext';
 import { useProject } from '../lib/projectContext';
-
-const links = [
-  { to: '/generate', label: 'Generate' }, // Most used daily
-  { to: '/documents', label: 'Documents' },
-  { to: '/projects', label: 'Projects' },
-  { to: '/codes', label: 'Codes' },
-  { to: '/audit', label: 'Audit' },
-  { to: '/members', label: 'Members' },
-  { to: '/management', label: 'Management' },
-  { to: '/profile', label: 'Profile' },
-  { to: '/settings', label: 'Settings' },
-];
+import { navLinks } from './navLinks';
 
 export default function AppShell() {
   const navigate = useNavigate();
@@ -48,7 +37,7 @@ export default function AppShell() {
           {projectId ? `Active project: ${projectName ?? `Project ${projectId}`}` : 'No project selected'}
         </div>
         <nav className="nav">
-          {links.map((l) => (
+          {navLinks.map((l) => (
             <NavLink key={l.to} to={l.to} className={({ isActive }) => (isActive ? 'active' : '')}>
               {l.label}
             </NavLink>
