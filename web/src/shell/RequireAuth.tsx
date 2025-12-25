@@ -5,6 +5,7 @@ export default function RequireAuth({ children }: { children: React.ReactNode })
   const { user, ready } = useAuth();
   const location = useLocation();
   const isDev = import.meta.env.DEV;
+  const skipLink = !isDev && sessionStorage.getItem('dc.skipLink') === 'true';
 
   if (!ready) return null;
 
@@ -12,7 +13,7 @@ export default function RequireAuth({ children }: { children: React.ReactNode })
     return <Navigate to="/login" replace state={{ from: location.pathname }} />;
   }
 
-  if (!isDev && user.needsLink && location.pathname !== '/link') {
+  if (!isDev && user.needsLink && !skipLink && location.pathname !== '/link') {
     return <Navigate to="/link" replace />;
   }
 
