@@ -53,7 +53,7 @@ public sealed class AesGcmSecretProtector : ISecretProtector
         var cipherBytes = new byte[plainBytes.Length];
         var tag = new byte[TagSize];
 
-        using (var aes = new AesGcm(key))
+        using (var aes = new AesGcm(key, TagSize))
         {
             aes.Encrypt(nonce, plainBytes, cipherBytes, tag);
         }
@@ -93,7 +93,7 @@ public sealed class AesGcmSecretProtector : ISecretProtector
 
         try
         {
-            using var aes = new AesGcm(key);
+            using var aes = new AesGcm(key, TagSize);
             aes.Decrypt(nonce, cipherBytes, tag, plainBytes);
         }
         catch (CryptographicException)

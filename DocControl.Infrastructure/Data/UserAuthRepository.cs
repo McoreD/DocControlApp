@@ -146,7 +146,7 @@ public sealed class UserAuthRepository
     }
 }
 
-internal sealed record TotpState(
+public sealed record TotpState(
     string Secret,
     DateTime CreatedAtUtc,
     DateTime? VerifiedAtUtc,

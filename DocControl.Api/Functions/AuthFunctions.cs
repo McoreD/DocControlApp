@@ -480,9 +480,3 @@ internal sealed record ChangePasswordRequest(string CurrentPassword, string NewP
 internal sealed record UpdateProfileRequest(string DisplayName);
 internal sealed record VerifyMfaRequest(string Code);
 internal sealed record LinkAccountRequest(string LegacyEmail, string Password, string MfaCode);
-internal sealed record TotpState(
-    string Secret,
-    DateTime CreatedAtUtc,
-    DateTime? VerifiedAtUtc,
-    string? PendingSecret,
-    DateTime? PendingCreatedAtUtc);
