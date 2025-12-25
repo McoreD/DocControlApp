@@ -1,6 +1,24 @@
 {
   "routes": [
     {
+      "route": "/api/auth/login",
+      "allowedRoles": [
+        "anonymous"
+      ]
+    },
+    {
+      "route": "/api/auth/register",
+      "allowedRoles": [
+        "anonymous"
+      ]
+    },
+    {
+      "route": "/api/auth/password/initial",
+      "allowedRoles": [
+        "anonymous"
+      ]
+    },
+    {
       "route": "/api/*",
       "allowedRoles": [
         "authenticated"
