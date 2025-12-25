@@ -3,12 +3,12 @@ import { useAuth } from '../lib/authContext';
 import { useProject } from '../lib/projectContext';
 
 const links = [
-  { to: '/projects', label: 'Projects' },
-  { to: '/generate', label: 'Generate' },
-  { to: '/members', label: 'Members' },
-  { to: '/codes', label: 'Codes' },
+  { to: '/generate', label: 'Generate' }, // Most used daily
   { to: '/documents', label: 'Documents' },
+  { to: '/projects', label: 'Projects' },
+  { to: '/codes', label: 'Codes' },
   { to: '/audit', label: 'Audit' },
+  { to: '/members', label: 'Members' },
   { to: '/management', label: 'Management' },
   { to: '/settings', label: 'Settings' },
 ];
