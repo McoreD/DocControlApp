@@ -43,17 +43,17 @@ public sealed class AuthContextFactory
             }
 
             var displayName = GetClaimValue(principal, "name") ?? email;
-        var user = await userRepository.GetByEmailAsync(email, cancellationToken).ConfigureAwait(false)
-                   ?? await userRepository.RegisterAsync(email, displayName, cancellationToken).ConfigureAwait(false);
+            var user = await userRepository.GetByEmailAsync(email, cancellationToken).ConfigureAwait(false)
+                       ?? await userRepository.RegisterAsync(email, displayName, cancellationToken).ConfigureAwait(false);
 
             await userAuthRepository.EnsureExistsAsync(user.Id, cancellationToken).ConfigureAwait(false);
             return (true, new AuthContext(user.Id, user.Email, user.DisplayName, true), null);
         }
 
-        if (TryGetBearer(req, out var token) && authTokenService.TryValidate(token, out var userId, out var email))
+        if (TryGetBearer(req, out var token) && authTokenService.TryValidate(token, out var tokenUserId, out var tokenEmail))
         {
-            var user = await userRepository.GetByIdAsync(userId, cancellationToken).ConfigureAwait(false);
-            if (user is not null && string.Equals(user.Email, email, StringComparison.OrdinalIgnoreCase))
+            var user = await userRepository.GetByIdAsync(tokenUserId, cancellationToken).ConfigureAwait(false);
+            if (user is not null && string.Equals(user.Email, tokenEmail, StringComparison.OrdinalIgnoreCase))
             {
                 await userAuthRepository.EnsureExistsAsync(user.Id, cancellationToken).ConfigureAwait(false);
                 var auth = await userAuthRepository.GetAsync(user.Id, cancellationToken).ConfigureAwait(false);
