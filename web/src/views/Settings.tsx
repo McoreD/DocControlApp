@@ -21,7 +21,6 @@ export default function Settings() {
   const [clearGeminiKey, setClearGeminiKey] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const isDev = import.meta.env.DEV;
 
   useEffect(() => {
     const load = async () => {

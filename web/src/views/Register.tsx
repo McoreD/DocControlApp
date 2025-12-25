@@ -202,7 +202,7 @@ export default function Register() {
       });
       if (registered.mfaEnabled) {
         if (!mfaCode.trim()) {
-          setError('Enter your 6-digit MFA code');
+          setError('Enter your MFA or backup code');
           mfaInput?.focus();
           clearUser();
           return;
@@ -271,7 +271,7 @@ export default function Register() {
       });
       if (registered.mfaEnabled) {
         if (!mfaCode.trim()) {
-          setError('Enter your 6-digit MFA code');
+          setError('Enter your MFA or backup code');
           mfaInput?.focus();
           clearUser();
           return;
@@ -376,13 +376,13 @@ export default function Register() {
 
         {(mode === 'login' || mode === 'setPassword') && (
           <>
-            <label>6-digit MFA code</label>
+            <label>MFA or backup code</label>
             <input
               ref={setMfaInput}
               value={mfaCode}
               onChange={(e) => setMfaCode(e.target.value)}
-              placeholder="123456"
-              inputMode="numeric"
+              placeholder="123456 or ABCDE-FGHIJ"
+              inputMode="text"
             />
           </>
         )}

@@ -28,6 +28,10 @@ export default function Profile() {
   const [mfaMessage, setMfaMessage] = useState<string | null>(null);
   const [mfaError, setMfaError] = useState<string | null>(null);
   const [mfaLoading, setMfaLoading] = useState(false);
+  const [backupCodes, setBackupCodes] = useState<string[] | null>(null);
+  const [backupMessage, setBackupMessage] = useState<string | null>(null);
+  const [backupError, setBackupError] = useState<string | null>(null);
+  const [backupLoading, setBackupLoading] = useState(false);
 
   const [swaPrincipal, setSwaPrincipal] = useState<string | null>(null);
 
@@ -158,6 +162,36 @@ export default function Profile() {
     }
   };
 
+  const generateBackupCodes = async () => {
+    setBackupError(null);
+    setBackupMessage(null);
+    setBackupLoading(true);
+    try {
+      const result = await AuthApi.backupCodes();
+      setBackupCodes(result.codes ?? []);
+      setBackupMessage('Backup codes generated. Store them somewhere safe.');
+    } catch (err: any) {
+      setBackupError(err.message ?? 'Failed to generate backup codes');
+    } finally {
+      setBackupLoading(false);
+    }
+  };
+
+  const copyBackupCodes = async () => {
+    if (!backupCodes || backupCodes.length === 0) return;
+    const payload = backupCodes.join('\n');
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(payload);
+        setBackupMessage('Backup codes copied to clipboard.');
+        return;
+      }
+      setBackupError('Clipboard access is not available in this browser.');
+    } catch (err: any) {
+      setBackupError(err.message ?? 'Failed to copy backup codes');
+    }
+  };
+
   return (
     <div className="page">
       <h1>Profile</h1>
@@ -203,6 +237,8 @@ export default function Profile() {
         )}
         {mfaMessage && <div className="pill" style={{ background: '#ecfdf3', color: '#166534' }}>{mfaMessage}</div>}
         {mfaError && <div className="pill" style={{ background: '#fee2e2', color: '#991b1b' }}>{mfaError}</div>}
+        {backupMessage && <div className="pill" style={{ background: '#ecfdf3', color: '#166534' }}>{backupMessage}</div>}
+        {backupError && <div className="pill" style={{ background: '#fee2e2', color: '#991b1b' }}>{backupError}</div>}
         <div className="stack">
           <button type="button" onClick={startMfa} disabled={mfaLoading || authMode !== 'password'}>
             {mfaLoading ? 'Working...' : user?.mfaEnabled ? 'Reset MFA' : 'Enable MFA'}
@@ -237,6 +273,30 @@ export default function Profile() {
                 {mfaLoading ? 'Verifying...' : 'Verify'}
               </button>
             </>
+          )}
+          <div>
+            <strong>Backup codes</strong>
+            <p className="muted" style={{ margin: '6px 0 0' }}>
+              Generate one-time backup codes in case you lose access to your authenticator.
+            </p>
+          </div>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <button type="button" onClick={generateBackupCodes} disabled={backupLoading || authMode !== 'password' || !user?.mfaEnabled}>
+              {backupLoading ? 'Generating...' : backupCodes ? 'Regenerate codes' : 'Generate codes'}
+            </button>
+            <button type="button" onClick={copyBackupCodes} disabled={!backupCodes || backupCodes.length === 0}>
+              Copy to clipboard
+            </button>
+          </div>
+          {backupCodes && backupCodes.length > 0 && (
+            <div className="card" style={{ background: '#0b1021' }}>
+              <p className="muted" style={{ marginTop: 0 }}>Codes are shown once. Store them securely.</p>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 8 }}>
+                {backupCodes.map((code) => (
+                  <div key={code} className="pill" style={{ justifyContent: 'center' }}>{code}</div>
+                ))}
+              </div>
+            </div>
           )}
         </div>
       </div>
