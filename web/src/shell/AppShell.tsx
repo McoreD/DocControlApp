@@ -10,6 +10,7 @@ const links = [
   { to: '/audit', label: 'Audit' },
   { to: '/members', label: 'Members' },
   { to: '/management', label: 'Management' },
+  { to: '/profile', label: 'Profile' },
   { to: '/settings', label: 'Settings' },
 ];
 
